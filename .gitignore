@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment secrets
+.env
+
+# Database (user-specific runtime data)
+data/*.db
+data/*.db-journal
+
+# Personal memory & history (privacy-sensitive)
+brain/temporal/
+brain/frontal/user_profile.md
+brain/brainstem/logging.md
+brain/brainstem/achievements.md
+
+# LCI-generated autonomous skills (unique per instance)
+brain/cerebellum/skills/
+brain/cerebellum/motor_learning.md
+
+# Runtime mirror files (regenerated on startup)
+brain/limbic/neurotransmitters.md
+
+# Workspace sandbox (LCI autonomous execution zone)
+workspace/
+
+# Build output
+dist/
+lci-core/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
