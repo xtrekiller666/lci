@@ -10,6 +10,8 @@ export interface UserConfig {
   modelName: string;
   apiKey: string;
   endpoint: string;
+  voiceEnabled?: boolean;
+  voicePersonality?: string;
 }
 
 export class ConfigManager {
@@ -34,6 +36,8 @@ export class ConfigManager {
       modelName: process.env.LLM_MODEL || 'gpt-4o',
       apiKey: process.env.OPENAI_API_KEY || '',
       endpoint: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+      voiceEnabled: true,
+      voicePersonality: 'organic',
     };
 
     try {

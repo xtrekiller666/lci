@@ -190,6 +190,54 @@ export default function ConfigPanel() {
                   />
                 </div>
 
+                {/* Voice & Audio Settings */}
+                <div className="pt-3 mt-3 border-t border-white/5">
+                  <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-3">Voice & Audio</h3>
+                  
+                  {/* Voice Toggle */}
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-[10px] text-gray-500">Voice Feedback</label>
+                    <button
+                      onClick={() => {
+                        const current = useLCIStore.getState().voiceEnabled;
+                        useLCIStore.getState().setVoiceEnabled(!current);
+                      }}
+                      className={`w-10 h-5 rounded-full transition-all relative ${
+                        useLCIStore.getState().voiceEnabled
+                          ? 'bg-neon-cyan/30 border border-neon-cyan/50'
+                          : 'bg-white/5 border border-white/10'
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${
+                        useLCIStore.getState().voiceEnabled
+                          ? 'right-0.5 bg-neon-cyan'
+                          : 'left-0.5 bg-gray-600'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {/* Voice Personality */}
+                  <div className="mb-3">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">Voice Personality</label>
+                    <select
+                      value={useLCIStore.getState().voicePersonality}
+                      onChange={(e) => useLCIStore.getState().setVoicePersonality(e.target.value as 'analytical' | 'organic')}
+                      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 appearance-none transition-colors"
+                    >
+                      <option value="organic">🧬 Organic (Emotion-Driven)</option>
+                      <option value="analytical">🤖 Analytical (Flat/Robotic)</option>
+                    </select>
+                  </div>
+
+                  {/* STT Placeholder */}
+                  <button
+                    disabled
+                    className="w-full py-2.5 text-[10px] uppercase tracking-wider text-gray-700 bg-white/[0.02] border border-white/5 rounded-lg cursor-not-allowed"
+                  >
+                    🎙 Microphone Input (Coming Soon)
+                  </button>
+                </div>
+
                 <div className="pt-2">
                   <button 
                     onClick={handleSave}

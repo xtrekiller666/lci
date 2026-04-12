@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useLCIStore } from '../store/useLCIStore';
+import { SpeechEngine } from '../audio/SpeechEngine';
+import type { TTSSentencePayload } from '../audio/ProsodyTypes';
 
 const SOCKET_URL = 'ws://localhost:3000';
 
@@ -56,6 +58,15 @@ export function useWebSocket() {
 
     socket.on('authority_request', (data: { id: string; command: string; path: string }) => {
       store.setPendingAuthority(data);
+    });
+
+    // Audio-Limbic TTS: Speak sentences with emotion-driven prosody
+    socket.on('tts_sentence', (data: TTSSentencePayload) => {
+      const engine = SpeechEngine.getInstance();
+      const voiceEnabled = useLCIStore.getState().voiceEnabled;
+      if (voiceEnabled) {
+        engine.speak(data.text, data.prosody);
+      }
     });
 
     return () => { socket.disconnect(); };

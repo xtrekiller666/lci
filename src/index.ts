@@ -14,6 +14,7 @@ import { Cerebellum, AuthorityRequiredError } from './core/Cerebellum.js';
 import { RelationshipManager } from './core/RelationshipManager.js';
 import { DreamLogic } from './core/DreamLogic.js';
 import { ConfigManager } from './core/ConfigManager.js';
+import { AcousticProcessor } from './core/AcousticProcessor.js';
 import axios from 'axios';
 
 // --- Server Setup ---
@@ -197,9 +198,20 @@ io.on('connection', (socket) => {
       const availableTools = cerebellum.getAvailableTools();
       let finalResponse = '';
 
+      // Compute prosody from current chemical state for TTS
+      const chemState = limbic.getChemicalState();
+      const voiceStyle = configManager.getConfig().voicePersonality || 'organic';
+      const prosody = AcousticProcessor.computeProsody({
+        dopamine: chemState.dopamine ?? 0.5,
+        serotonin: chemState.serotonin ?? 0.5,
+        cortisol: chemState.cortisol ?? 0.5,
+        oxytocin: chemState.oxytocin ?? 0.5,
+      }, voiceStyle as 'analytical' | 'organic');
+
       while (true) {
         let responseMessage: any = { role: 'assistant', content: '' };
         let toolCalls: any[] = [];
+        let sentenceBuffer = ''; // Accumulates tokens until a sentence boundary
 
         const stream = llm.completeWithToolsStream(currentMessages, availableTools);
         
@@ -209,6 +221,15 @@ io.on('connection', (socket) => {
             finalResponse += token;
             responseMessage.content += token;
             io.emit('llm_token', { token });
+
+            // Sentence segmentation for TTS
+            sentenceBuffer += token;
+            // Check if the buffer ends with sentence-ending punctuation
+            const trimmed = sentenceBuffer.trim();
+            if (trimmed && /[.!?।؟]$/.test(trimmed) && trimmed.length > 5) {
+              io.emit('tts_sentence', { text: trimmed, prosody });
+              sentenceBuffer = '';
+            }
           }
           if (chunk.delta?.tool_calls) {
             for (const tc of chunk.delta.tool_calls) {
@@ -219,6 +240,12 @@ io.on('connection', (socket) => {
               if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
             }
           }
+        }
+
+        // Flush any remaining text in the sentence buffer
+        const remaining = sentenceBuffer.trim();
+        if (remaining.length > 0) {
+          io.emit('tts_sentence', { text: remaining, prosody });
         }
 
         io.emit('llm_token', { done: true });

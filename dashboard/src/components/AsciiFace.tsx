@@ -3,6 +3,41 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGLTF, Environment, ContactShadows, Float } from '@react-three/drei';
 import { useLCIStore } from '../store/useLCIStore';
+import { SpeechEngine } from '../audio/SpeechEngine';
+
+function VoiceAura() {
+  const auraRef = useRef<THREE.Mesh>(null!);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null!);
+
+  useFrame(() => {
+    if (!auraRef.current || !materialRef.current) return;
+
+    const engine = SpeechEngine.getInstance();
+    const amplitude = engine.getAmplitude();
+
+    // Pulse the aura scale and opacity with voice amplitude
+    const baseScale = 2.8;
+    const pulseScale = baseScale + amplitude * 0.8;
+    auraRef.current.scale.set(pulseScale, pulseScale, pulseScale);
+
+    // Glow intensity: idle = very faint, speaking = vivid
+    materialRef.current.opacity = 0.02 + amplitude * 0.08;
+  });
+
+  return (
+    <mesh ref={auraRef} position={[0, 0.5, -1]}>
+      <sphereGeometry args={[1, 32, 32]} />
+      <meshBasicMaterial
+        ref={materialRef}
+        color="#00e5ff"
+        transparent
+        opacity={0.02}
+        side={THREE.BackSide}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
 
 function PremiumDigitalFace() {
   const groupRef = useRef<THREE.Group>(null!);
@@ -48,31 +83,57 @@ function PremiumDigitalFace() {
     return cloned;
   }, [scene]);
 
+  // Track last sync time for drift detection
+  const lastSyncRef = useRef(performance.now());
+
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
+    const now = performance.now();
 
     // 1. Cortisol Jitter (High Frequency vibration with high stress)
-    // Scale jitter intensity based on cortisol level (0.0 to 1.0)
     const jitterIntensity = chemicals.cortisol * 0.04;
     if (chemicals.cortisol > 0.3) {
       groupRef.current.position.x = (Math.random() - 0.5) * jitterIntensity;
       groupRef.current.position.z = (Math.random() - 0.5) * jitterIntensity;
     } else {
-      groupRef.current.position.x = 0;
-      groupRef.current.position.z = 0;
+      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, 0, 0.15);
+      groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, 0, 0.15);
     }
 
-    // 2. Speech Stretching (Y-scale pulse during speaking)
-    if (isSpeaking) {
-      // Periodic breathing + speech bounce
-      groupRef.current.position.y = Math.sin(t * 4) * 0.03 + 0.5;
-      // Vertical stretch pulse to simulate robotic articulation
-      const stretch = 1.0 + Math.sin(t * 15) * 0.05;
-      groupRef.current.scale.set(1, stretch, 1);
+    // 2. Audio-Driven Lip-Sync (replaces blind sine wave)
+    const engine = SpeechEngine.getInstance();
+    const amplitude = engine.getAmplitude(); // 0.0–1.0 from FFT or synthetic
+
+    if (isSpeaking || engine.isSpeaking) {
+      // Sync Guard: Check drift between AudioContext and render clock
+      const drift = now - lastSyncRef.current;
+      const useLerp = drift < 150; // If less than 150ms drift, smooth interpolation
+      lastSyncRef.current = now;
+
+      // Jaw movement: Y-scale driven by audio amplitude
+      const targetStretch = 1.0 + amplitude * 0.12;
+      if (useLerp) {
+        const currentScaleY = groupRef.current.scale.y;
+        groupRef.current.scale.set(1, THREE.MathUtils.lerp(currentScaleY, targetStretch, 0.4), 1);
+      } else {
+        // Snap (drift too high, skip lerp to resync)
+        groupRef.current.scale.set(1, targetStretch, 1);
+      }
+
+      // Subtle jaw offset (pulls chin down with amplitude)
+      const jawOffset = amplitude * 0.05;
+      groupRef.current.position.y = THREE.MathUtils.lerp(
+        groupRef.current.position.y,
+        0.5 - jawOffset,
+        0.3
+      );
     } else {
+      // Return to rest position smoothly
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 0.5, 0.1);
-      groupRef.current.scale.set(1, 1, 1);
+      groupRef.current.scale.y = THREE.MathUtils.lerp(groupRef.current.scale.y, 1.0, 0.15);
+      groupRef.current.scale.x = 1;
+      groupRef.current.scale.z = 1;
     }
   });
 
@@ -101,6 +162,9 @@ export default function AsciiFace() {
         <directionalLight position={[0, 5, 5]} intensity={1.5} color="#ffffff" />
         <spotLight position={[-5, 5, -5]} intensity={2.0} color="#00e5ff" /> {/* Cyan rim light */}
         <spotLight position={[5, 0, -5]} intensity={1.5} color="#ffffff" /> 
+
+        {/* Voice Aura: Glows with speech amplitude */}
+        <VoiceAura />
 
         <PremiumDigitalFace />
 
