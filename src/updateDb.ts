@@ -34,4 +34,20 @@ db.exec(`
 `);
 
 console.log('Tables user_anchors and memories created or already exist.');
+
+// Create relationship table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS relationship (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    trust_score INTEGER DEFAULT 10,
+    closeness_level INTEGER DEFAULT 5,
+    user_archetype TEXT DEFAULT 'Assistant',
+    last_update DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Ensure single relationship row exists
+db.prepare('INSERT OR IGNORE INTO relationship (id) VALUES (1)').run();
+
+console.log('Relationship table created or already exists.');
 db.close();

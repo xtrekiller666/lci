@@ -30,7 +30,31 @@ db.exec(`
   )
 `);
 
-// Initial values
+// Create user_anchors table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_anchors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    value TEXT NOT NULL,
+    detected_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Create relationship table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS relationship (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    trust_score INTEGER DEFAULT 10,
+    closeness_level INTEGER DEFAULT 5,
+    user_archetype TEXT DEFAULT 'Assistant',
+    last_update DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Ensure single relationship row exists
+db.prepare('INSERT OR IGNORE INTO relationship (id) VALUES (1)').run();
+
+// Initial transmitter values
 const initialTransmitters = [
   { name: 'dopamine', value: 0.5 },
   { name: 'serotonin', value: 0.5 },
@@ -48,5 +72,5 @@ const transaction = db.transaction((data) => {
 
 transaction(initialTransmitters);
 
-console.log('Database initialized with initial transmitters.');
+console.log('Database initialized with all tables.');
 db.close();

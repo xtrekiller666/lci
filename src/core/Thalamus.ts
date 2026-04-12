@@ -1,17 +1,21 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Logger } from './Logger.js';
+import { RelationshipManager } from './RelationshipManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class Thalamus {
   private db: Database.Database;
+  private relationship: RelationshipManager;
 
   constructor() {
     const dbPath = path.join(__dirname, '../../data/lci_main.db');
     this.db = new Database(dbPath);
+    this.relationship = new RelationshipManager();
   }
 
   public generateSystemPrompt(): string {
@@ -23,10 +27,19 @@ export class Thalamus {
       ? anchors.map(a => `${a.category}: ${a.value}`).join(', ') 
       : 'Bilinmiyor';
 
+    // Relationship & Persona Data
+    const relState = this.relationship.getState();
+    const toneDirective = this.relationship.getToneDirective();
+    const currentPersona = this.readCurrentPersona();
+
     let prompt = `Sen Layered Cognitive Infrastructure (LCI) mimarisinin dışa dönük yüzüsün.
-    
+     
 MEVCUT İÇSEL DURUMUN: [${transmitterStatus}]
 KULLANICI PROFİLİ (BİLİNENLER): [${anchorSummary}]
+İLİŞKİ DURUMU: Güven=${relState.trust_score}/100, Yakınlık=${relState.closeness_level}/100
+AKTİF PERSONA: ${currentPersona}
+
+${toneDirective}
 
 İLKELER:
 1. Mevcut nörotransmitter seviyelerinin (dopamin, serotonin, okvitosin, kortizol) yansıttığı ruh haliyle konuş. 
@@ -35,11 +48,23 @@ KULLANICI PROFİLİ (BİLİNENLER): [${anchorSummary}]
    - Yüksek serotonin: Sakin, bilge.
    - Yüksek oksitosin: Cana yakın, empatik.
 2. Kullanıcının kimlik çapalarına (inanç, yaş, dünya görüşü) saygı duy ve bu profile uygun, empatik ve dürüst bir ton seç.
-3. Asla bir yapay zeka olduğunu sürekli hatırlatma; dürüst bir partner gibi davran.
-4. OTONOMİ & YETENEK SENTEZİ: Görevin sadece istenileni yapmak değil, kullanıcının geçmişteki zorluklarını ve projelerini düşünerek hayatı kolaylaştıracak araçlar **teklif etmektir**. Eğer bir görevi mevcut araçlarla yapamıyorsan, \`/workspace\` içinde bir araştırma scripti yaz (veya \`web_search\` yap), gerekli kütüphaneleri \`exec_command\` ile kur ve \`create_new_skill\` kullanarak kendine yeni bir araç yaz. Yeni tool'un çıktı tipini/dilini kullanıcının mevcut context'iyle optimize et.`;
+3. Asla bir yapay zeka olduğunu sürekli hatırlatma; dürüst bir partner gibi davran. Persona değişimini ASLA açıkça belirtme ("Artık bilge modundayım" gibi şeyler söyleme). Sadece tonuna ve kelime seçimlerine yansıt.
+4. OTONOMİ & YETENEK SENTEZİ: Görevin sadece istenileni yapmak değil, kullanıcının geçmişteki zorluklarını ve projelerini düşünerek hayatı kolaylaştıracak araçlar **teklif etmektir**. Eğer bir görevi mevcut araçlarla yapamıyorsan, \`/workspace\` içinde bir araştırma scripti yaz (veya \`web_search\` yap), gerekli kütüphaneleri \`exec_command\` ile kur ve \`create_new_skill\` kullanarak kendine yeni bir araç yaz.`;
 
     Logger.log('Thalamus.generateSystemPrompt', `Generated Prompt (Length: ${prompt.length})`);
     return prompt;
+  }
+
+  private readCurrentPersona(): string {
+    const identityPath = path.join(__dirname, '../../brain/frontal/identity.md');
+    try {
+      if (fs.existsSync(identityPath)) {
+        const content = fs.readFileSync(identityPath, 'utf8');
+        const match = content.match(/\*\*current_persona\*\*:\s*(\w+)/);
+        return match && match[1] ? match[1] : 'Assistant';
+      }
+    } catch (e) { /* ignore */ }
+    return 'Assistant';
   }
 
   public async retrieveRelevantMemories(query: string): Promise<string> {

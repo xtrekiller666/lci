@@ -7,6 +7,8 @@ import { Logger } from './core/Logger.js';
 import { MirrorDB } from './core/MirrorDB.js';
 import { MemoryManager } from './core/MemoryManager.js';
 import { Cerebellum } from './core/Cerebellum.js';
+import { RelationshipManager } from './core/RelationshipManager.js';
+import { DreamLogic } from './core/DreamLogic.js';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -20,6 +22,8 @@ const thalamus = new Thalamus();
 const mirror = new MirrorDB();
 const memory = new MemoryManager(llm);
 const cerebellum = new Cerebellum(rl);
+const relationship = new RelationshipManager();
+const dream = new DreamLogic(llm, relationship);
 
 // Track conversation history for consolidation
 const conversationHistory: string[] = [];
@@ -40,8 +44,10 @@ async function runLoop() {
         if (conversationHistory.length > 0) {
           const fullHistory = conversationHistory.join('\n');
           await memory.consolidateSession(fullHistory);
-          console.log('[TEMPORAL LOBE] Hafıza konsolidasyonu tamamlandı. (brain/temporal/)');
+          console.log('[TEMPORAL LOBE] Hafıza konsolidasyonu tamamlandı.');
         }
+        // Dream Cycle — runs asynchronously before final exit
+        await dream.runDreamCycle();
       } catch (err) {
         Logger.error('SESSION_CONSOLIDATION', err);
       }
@@ -124,6 +130,9 @@ async function runLoop() {
       mirror.exportTransmitters();
 
       Logger.log('INTERACTION_END', `LCI Response: ${finalResponse.substring(0, 100)}...`);
+
+      // 8. Update relationship closeness (small bump per interaction)
+      await relationship.adjustCloseness(1);
     } catch (error) {
       Logger.error('MAIN_LOOP', error);
       console.error('\n[!] Hata oluştu. Detaylar: brainstem/logging.md');
