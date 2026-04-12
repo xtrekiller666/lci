@@ -177,7 +177,7 @@ io.on('connection', (socket) => {
           if (chunk.delta?.tool_calls) {
             for (const tc of chunk.delta.tool_calls) {
               if (!toolCalls[tc.index]) {
-                toolCalls[tc.index] = { id: tc.id, function: { name: '', arguments: '' } };
+                toolCalls[tc.index] = { id: tc.id, type: 'function', function: { name: '', arguments: '' } };
               }
               if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
               if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
@@ -206,10 +206,10 @@ io.on('connection', (socket) => {
               io.emit('relationship_update', relationship.getState());
             }
 
+            // Strictly compliant OpenAI 'tool' role format (do NOT include 'name')
             currentMessages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
-              name: toolCall.function.name,
               content: toolResult
             });
           }

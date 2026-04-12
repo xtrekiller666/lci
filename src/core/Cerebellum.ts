@@ -236,7 +236,12 @@ export class Cerebellum {
     // For now we mock it to return a message indicating search was performed.
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html'
+        }
+      });
       const text = await response.text();
       // Extremely basic mock extraction.
       return `Results for ${query}: Web page fetched successfully. Optimize this info for user based on context: ${userContext}`;
