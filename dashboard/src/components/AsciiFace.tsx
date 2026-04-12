@@ -53,30 +53,22 @@ function PremiumDigitalFace() {
     const t = clock.getElapsedTime();
     
     // Biometric Reaction Mapping
-    // Use high-frequency sine waves combined for chaotic but smooth trembling instead of frame-independent chaotic Math.random()
-    const jitterStr = chemicals.cortisol > 0.6 ? (chemicals.cortisol - 0.6) * 0.1 : 0;
-    const smoothJitter = jitterStr > 0 ? (Math.sin(t * 40) + Math.sin(t * 60)) * jitterStr : 0;
-    const excitement = chemicals.dopamine > 0.6 ? (chemicals.dopamine - 0.6) * 0.1 : 0;
+    const jitterStr = chemicals.cortisol > 0.6 ? (chemicals.cortisol - 0.6) * 0.05 : 0;
+    const smoothJitterX = jitterStr > 0 ? (Math.sin(t * 40)) * jitterStr : 0;
+    const smoothJitterY = jitterStr > 0 ? (Math.cos(t * 45)) * jitterStr : 0;
     
-    // Idle animation + Cortisol Jitter
-    groupRef.current.position.x = smoothJitter;
-    // Rotate slightly on idle
-    groupRef.current.rotation.y = Math.sin(t * 0.3) * 0.1;
-    groupRef.current.rotation.z = Math.sin(t * 0.2) * 0.02;
+    // Smooth, non-deforming idle animation + Cortisol tremble
+    groupRef.current.position.x = smoothJitterX;
+    groupRef.current.position.y = 0.5 + smoothJitterY; // Base elevation is 0.5
+    
+    // Rotate slightly on idle for organic feel
+    groupRef.current.rotation.y = Math.sin(t * 0.3) * 0.08;
+    groupRef.current.rotation.z = Math.sin(t * 0.2) * 0.015;
 
-    // Simulate "speaking" via vertical jaw stretching and gentle pulsing
+    // Simulate "speaking" via slight vertical bouncing without warping the geometry
     if (isSpeaking) {
-      groupRef.current.position.y += (Math.sin(t * 20) * 0.01) + smoothJitter;
-      // Procedural Jaw Mimicry: rapid subtle Y-axis scale stretching
-      groupRef.current.scale.y = 1.0 + (Math.sin(t * 30) * 0.5 + 0.5) * 0.04;
-    } else {
-      groupRef.current.scale.y = THREE.MathUtils.lerp(groupRef.current.scale.y, 1.0, 0.1);
+      groupRef.current.position.y += Math.sin(t * 20) * 0.015;
     }
-
-    // Dopamine Excitement: Head subtly expands/leans forward
-    const targetScaleXZ = 1.0 + excitement;
-    groupRef.current.scale.x = THREE.MathUtils.lerp(groupRef.current.scale.x, targetScaleXZ, 0.1);
-    groupRef.current.scale.z = THREE.MathUtils.lerp(groupRef.current.scale.z, targetScaleXZ, 0.1);
   });
 
   return (

@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLCIStore } from '../store/useLCIStore';
 
+const AI_PROVIDERS = [
+  { id: 'custom', name: 'Custom (Local)', url: 'http://localhost:1234/v1', models: ['gemma-2-9b-it', 'llama-3', 'mistral'] },
+  { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1', models: ['gpt-4o', 'gpt-4-turbo'] },
+  { id: 'google', name: 'Google (Gemini)', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', models: ['gemini-2.5-flash', 'gemini-1.5-pro'] },
+  { id: 'anthropic', name: 'Anthropic (Proxy)', url: 'https://api.anthropic.com/v1', models: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229'] },
+  { id: 'deepseek', name: 'Deepseek', url: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'] }
+];
+
 export default function ConfigPanel() {
   const configOpen = useLCIStore((s) => s.configOpen);
   const toggleConfig = useLCIStore((s) => s.toggleConfig);
@@ -10,6 +18,7 @@ export default function ConfigPanel() {
   const currentConfig = useLCIStore((s) => s.config);
   const setStoreConfig = useLCIStore((s) => s.setConfig);
 
+  const [providerId, setProviderId] = useState('custom');
   const [modelName, setModelName] = useState(currentConfig.modelName);
   const [apiKey, setApiKey] = useState(currentConfig.apiKey);
   const [endpoint, setEndpoint] = useState(currentConfig.endpoint);
@@ -21,7 +30,26 @@ export default function ConfigPanel() {
     setModelName(currentConfig.modelName);
     setApiKey(currentConfig.apiKey);
     setEndpoint(currentConfig.endpoint);
+    
+    const matched = AI_PROVIDERS.find(p => p.url === currentConfig.endpoint);
+    if (matched) setProviderId(matched.id);
+    else setProviderId('custom');
   }, [currentConfig]);
+
+  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const pId = e.target.value;
+    setProviderId(pId);
+    
+    const prov = AI_PROVIDERS.find(p => p.id === pId);
+    if (prov) {
+      setEndpoint(prov.url);
+      if (!prov.models.includes(modelName)) {
+        setModelName(prov.models[0]);
+      }
+    }
+  };
+
+  const currentProviderConfig = AI_PROVIDERS.find(p => p.id === providerId) || AI_PROVIDERS[0];
 
   const handleSave = async () => {
     setSaving(true);
@@ -90,7 +118,7 @@ export default function ConfigPanel() {
                   </span>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 mb-6">Runtime settings for your companion.</p>
+              <p className="text-[10px] text-gray-500 mb-6">Runtime core logic settings.</p>
 
               {connectionError && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 mb-4">
@@ -98,17 +126,46 @@ export default function ConfigPanel() {
                 </div>
               )}
 
-              <div className="space-y-5 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                
+                {/* Provider Dropdown */}
                 <div>
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">Model Name</label>
-                  <input
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 transition-colors"
-                    placeholder="gpt-4o, gemma-3, llama..."
-                  />
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">AI Provider</label>
+                  <select
+                    value={providerId}
+                    onChange={handleProviderChange}
+                    className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 appearance-none transition-colors"
+                  >
+                    {AI_PROVIDERS.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
 
+                {/* Model Dropdown / Input */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">Model</label>
+                  {providerId === 'custom' ? (
+                    <input
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 transition-colors"
+                      placeholder="e.g. gemma-3-4b"
+                    />
+                  ) : (
+                    <select
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 appearance-none transition-colors"
+                    >
+                      {currentProviderConfig.models.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* API Key */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">API Key</label>
                   <input
@@ -120,44 +177,49 @@ export default function ConfigPanel() {
                   />
                 </div>
 
+                {/* Endpoint URL */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">Endpoint URL</label>
                   <input
                     value={endpoint}
                     onChange={(e) => setEndpoint(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 transition-colors"
-                    placeholder="http://localhost:1234/v1"
+                    disabled={providerId !== 'custom'}
+                    className={`w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none transition-colors ${
+                      providerId !== 'custom' ? 'text-gray-500 cursor-not-allowed opacity-50' : 'text-gray-200 focus:border-neon-cyan/50'
+                    }`}
                   />
                 </div>
 
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className={`w-full py-2 text-[10px] uppercase tracking-[0.2em] border transition-all rounded-lg scroll-m-1 ${
-                    saving 
-                      ? 'border-neon-cyan/10 bg-neon-cyan/5 text-neon-cyan/50 cursor-wait' 
-                      : 'border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/10'
-                  }`}
-                >
-                  {saving ? 'Applying...' : 'Apply Settings'}
-                </button>
+                <div className="pt-2">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className={`w-full py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border transition-all rounded-lg scroll-m-1 ${
+                      saving 
+                        ? 'border-neon-cyan/10 bg-neon-cyan/5 text-neon-cyan/50 cursor-wait' 
+                        : 'border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/10'
+                    }`}
+                  >
+                    {saving ? 'Applying...' : 'Apply Details'}
+                  </button>
+                  <p className="text-[9px] text-gray-600 text-center mt-2 px-1">
+                    Some providers (Anthropic) may require a proxy if they do not natively support the OpenAI protocol.
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-auto pt-6 border-t border-white/5">
+              <div className="mt-auto pt-4 border-t border-white/5">
                 <button
                   onClick={handleReboot}
                   disabled={rebooting}
-                  className={`w-full py-3 text-xs uppercase tracking-[0.15em] rounded-lg font-medium transition-all ${
+                  className={`w-full py-3 text-[10px] uppercase tracking-[0.2em] rounded-lg font-bold transition-all ${
                     rebooting
                       ? 'bg-red-900/30 text-red-400 cursor-wait'
-                      : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 hover:border-red-500/50'
+                      : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
                   }`}
                 >
-                  {rebooting ? '⟳ Rebooting...' : '⚡ Reboot LCI'}
+                  {rebooting ? '⟳ Rebooting...' : '⚡ Reboot LCI Core'}
                 </button>
-                <p className="text-[9px] text-gray-600 text-center mt-2">
-                  Full system restart. All active sessions will end.
-                </p>
               </div>
             </motion.div>
           </>
