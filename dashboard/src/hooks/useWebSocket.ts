@@ -69,6 +69,15 @@ export function useWebSocket() {
       }
     });
 
+    // Dia TTS: Play HD Python generated Audio buffers
+    socket.on('tts_audio_buffer', (data: { audioBase64: string; fallbackText: string; prosody: any }) => {
+      const engine = SpeechEngine.getInstance();
+      const voiceEnabled = useLCIStore.getState().voiceEnabled;
+      if (voiceEnabled) {
+        engine.speakBuffer(data.audioBase64, data.fallbackText, data.prosody);
+      }
+    });
+
     return () => { socket.disconnect(); };
   }, []);
 }

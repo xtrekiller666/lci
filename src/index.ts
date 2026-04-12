@@ -227,7 +227,24 @@ io.on('connection', (socket) => {
             // Check if the buffer ends with sentence-ending punctuation
             const trimmed = sentenceBuffer.trim();
             if (trimmed && /[.!?।؟]$/.test(trimmed) && trimmed.length > 5) {
-              io.emit('tts_sentence', { text: trimmed, prosody });
+              const diaTags = AcousticProcessor.getDiaTags(chemState as any);
+              const textToSpeak = diaTags + trimmed;
+              
+              const sendToBrowser = () => io.emit('tts_sentence', { text: trimmed, prosody });
+              
+              if (configManager.getConfig().voiceEnabled) {
+                // Try fetching HD audio from Dia Microservice
+                axios.post('http://127.0.0.1:5000/generate', { text: textToSpeak }, { responseType: 'arraybuffer' })
+                  .then(res => {
+                    const base64Audio = Buffer.from(res.data, 'binary').toString('base64');
+                    io.emit('tts_audio_buffer', { audioBase64: base64Audio, fallbackText: trimmed, prosody });
+                  })
+                  .catch(err => {
+                    Logger.error('Dia_TTS', 'Failed to generate audio from Dia. Falling back to browser TTS.');
+                    sendToBrowser();
+                  });
+              }
+
               sentenceBuffer = '';
             }
           }
@@ -245,7 +262,21 @@ io.on('connection', (socket) => {
         // Flush any remaining text in the sentence buffer
         const remaining = sentenceBuffer.trim();
         if (remaining.length > 0) {
-          io.emit('tts_sentence', { text: remaining, prosody });
+          const diaTags = AcousticProcessor.getDiaTags(chemState as any);
+          const textToSpeak = diaTags + remaining;
+          
+          const sendToBrowser = () => io.emit('tts_sentence', { text: remaining, prosody });
+          
+          if (configManager.getConfig().voiceEnabled) {
+            axios.post('http://127.0.0.1:5000/generate', { text: textToSpeak }, { responseType: 'arraybuffer' })
+              .then(res => {
+                const base64Audio = Buffer.from(res.data, 'binary').toString('base64');
+                io.emit('tts_audio_buffer', { audioBase64: base64Audio, fallbackText: remaining, prosody });
+              })
+              .catch(err => {
+                sendToBrowser();
+              });
+          }
         }
 
         io.emit('llm_token', { done: true });

@@ -114,6 +114,21 @@ Once the Dashboard is running on `http://localhost:5173`, click the **Settings (
 - Leave `API Key` blank or type `sk-dummy`.
 - Setting formats properly updates the backend dynamically without rebooting!
 
+### High-Fidelity Dia TTS (Python Microservice)
+LCI now natively supports **Nari Labs Dia (1.6B)** for deep learning, cinematic voice generation. It automatically tags sentences with emotions derived from simulated neurotransmitters (such as `(laughs)` on high dopamine).
+
+> **Hardware Requirement:** You must have an NVIDIA GPU with at least **4.5 GB to 8 GB VRAM** and CUDA 12.6+.
+
+To start the Python TTS Microservice:
+```bash
+cd lci/python_tts
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python server.py
+```
+*The LCI Backend will automatically detect the server running on `localhost:5000` and instantly switch from Browser TTS to HD Audio.*
+
 ---
 
 ## Project Structure

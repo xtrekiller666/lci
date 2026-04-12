@@ -89,4 +89,23 @@ export class AcousticProcessor {
 
     return { rate, pitch, volume, voiceStyle: 'organic' };
   }
+
+  /**
+   * Generates non-verbal expression tags for Dia TTS based on chemistry.
+   */
+  public static getDiaTags(chemicals: ChemicalSnapshot): string {
+    let tags = [];
+    if (chemicals.dopamine > 0.8) tags.push('(laughs)');
+    else if (chemicals.dopamine > 0.6) tags.push('(chuckle)');
+    
+    if (chemicals.cortisol > 0.8) tags.push('(sighs)');
+    else if (chemicals.cortisol > 0.6) tags.push('(clears throat)');
+
+    if (chemicals.serotonin > 0.8) tags.push('(inhales)');
+    
+    if (chemicals.oxytocin > 0.8) tags.push('(humming)');
+
+    return tags.length > 0 ? tags.join(' ') + ' ' : '';
+  }
 }
+

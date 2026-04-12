@@ -15,7 +15,7 @@ export class SpeechEngine {
   private analyser: AnalyserNode | null = null;
   private dataArray: Uint8Array | null = null;
 
-  private queue: Array<{ text: string; prosody: ProsodyParams }> = [];
+  private queue: Array<{ text: string; prosody: ProsodyParams; audioBuffer?: AudioBuffer }> = [];
   private isBusy = false;
   private enabled = true;
   private _isSpeaking = false;
@@ -70,6 +70,32 @@ export class SpeechEngine {
 
     this.queue.push({ text, prosody });
     this.processQueue();
+  }
+
+  /**
+   * Decode Base64 Dia audio stream, enqueue and play.
+   */
+  public async speakBuffer(base64: string, fallbackText: string, prosody: ProsodyParams): Promise<void> {
+    if (!this.enabled) return;
+
+    try {
+      const binaryString = window.atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      if (!this.audioContext) this.initAudioContext();
+      if (!this.audioContext) throw new Error("AudioContext not present.");
+      
+      const audioBuffer = await this.audioContext.decodeAudioData(bytes.buffer);
+      this.queue.push({ text: fallbackText, prosody, audioBuffer });
+      this.processQueue();
+    } catch (err) {
+      console.error('[SpeechEngine] Failed to decode audio buffer, falling back to text TTS.', err);
+      this.speak(fallbackText, prosody);
+    }
   }
 
   /**
@@ -135,14 +161,46 @@ export class SpeechEngine {
   private processQueue(): void {
     if (this.isBusy || this.queue.length === 0) return;
 
+    this.isBusy = true;
+    const item = this.queue.shift()!;
+
+    // Case 1: We have a generated Audio Buffer (Dia)
+    if (item.audioBuffer && this.audioContext && this.analyser) {
+        const source = this.audioContext.createBufferSource();
+        source.buffer = item.audioBuffer;
+        
+        // Connect to analyser for lip-sync, then to destination
+        source.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+        
+        source.onended = () => {
+             this.isBusy = false;
+             if (this.queue.length === 0) {
+                 this._isSpeaking = false;
+                 this.onSpeakingChange?.(false);
+             }
+             this.processQueue();
+        };
+
+        this._isSpeaking = true;
+        this.onSpeakingChange?.(true);
+
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        source.start(0);
+        return;
+    }
+
+    // Case 2: Fallback to Browser native SpeechSynthesis
     if (typeof speechSynthesis === 'undefined') {
       console.warn('[SpeechEngine] speechSynthesis not available. Silent mode.');
+      this.isBusy = false;
       this.queue = [];
       return;
     }
 
-    this.isBusy = true;
-    const { text, prosody } = this.queue.shift()!;
+    const { text, prosody } = item;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = prosody.rate;
