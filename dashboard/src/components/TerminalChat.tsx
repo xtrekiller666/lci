@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLCIStore } from '../store/useLCIStore';
 import { io } from 'socket.io-client';
+import { MicrophoneInput } from '../audio/MicrophoneInput';
 
 const socket = io('ws://localhost:3000', { transports: ['websocket'] });
 
@@ -18,14 +19,38 @@ export default function TerminalChat() {
   
   const pendingAuthority = useLCIStore((s) => s.pendingAuthority);
   const setPendingAuthority = useLCIStore((s) => s.setPendingAuthority);
+  
+  const isListening = useLCIStore((s) => s.isListening);
+  const setIsListening = useLCIStore((s) => s.setIsListening);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  // Initialize Microphone
+  useEffect(() => {
+    const mic = MicrophoneInput.getInstance();
+    
+    mic.onListeningChange = (listening) => {
+      setIsListening(listening);
+    };
+
+    mic.onTranscript = (text, isFinal) => {
+      if (isFinal) {
+        socket.emit('user_message', { message: text });
+        setChatHistory((h) => [...h, { role: 'user', text }]);
+      } else {
+        // Show interim in input box
+        setInput(text);
+      }
+    };
+
+    return () => mic.stop();
+  }, [setIsListening]);
+
   // Auto-scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, streamBuffer]);
+  }, [chatHistory, streamBuffer, input]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,6 +74,21 @@ export default function TerminalChat() {
   const handleAuthority = (approved: boolean) => {
     socket.emit('authority_response', { approved });
     setPendingAuthority(null);
+  };
+
+  const handleMicToggle = () => {
+    const mic = MicrophoneInput.getInstance();
+    if (!mic.isSupported) {
+      alert("Microphone input is not supported in this browser.");
+      return;
+    }
+    
+    if (isListening) {
+      mic.stop();
+      setInput('');
+    } else {
+      mic.start();
+    }
   };
 
   return (
@@ -140,6 +180,11 @@ export default function TerminalChat() {
                   </motion.span>
                 </div>
               )}
+              {isListening && input && (
+                <div className="text-gray-500 italic">
+                  YOU&gt; {input}...
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
           ) : (
@@ -156,18 +201,38 @@ export default function TerminalChat() {
 
         {/* Input (Chat tab only) */}
         {activeTab === 'CHAT' && (
-          <div className="flex border-t border-white/5">
-            <span className="text-neon-cyan text-xs px-3 py-2.5 select-none opacity-60">▸</span>
+          <div className="flex items-center border-t border-white/5 pr-1">
+            <span className="text-neon-cyan text-xs pl-3 pr-2 py-2.5 select-none opacity-60">▸</span>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type a message..."
-              className="flex-1 bg-transparent text-xs text-gray-200 outline-none py-2.5 placeholder:text-gray-700"
+              placeholder={isListening ? "Listening..." : "Type a message..."}
+              disabled={isListening}
+              className="flex-1 bg-transparent text-xs text-gray-200 outline-none py-2.5 placeholder:text-gray-700 disabled:opacity-50"
             />
+            
+            {/* Mic Toggle */}
+            <button
+              onClick={handleMicToggle}
+              className={`p-2 mx-1 rounded-full transition-all flex items-center justify-center ${
+                isListening 
+                  ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 animate-pulse'
+                  : 'bg-transparent text-gray-600 hover:bg-white/5 hover:text-white'
+              }`}
+              title="Toggle Voice Input"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            </button>
+
             <button
               onClick={handleSend}
-              className="text-[10px] text-gray-600 hover:text-neon-cyan px-4 transition-colors uppercase tracking-wider"
+              disabled={isListening}
+              className="text-[10px] text-gray-600 hover:text-neon-cyan px-3 py-2 transition-colors uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Send
             </button>

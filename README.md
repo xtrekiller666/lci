@@ -4,8 +4,6 @@
 
 ---
 
----
-
 ## What is LCI?
 
 **LCI (Life Companion Intelligence)** is a modular AI system modeled after the biological layers of the human brain. Unlike traditional chatbots or AI agents, LCI maintains an internal emotional state through simulated neurotransmitters, forms long-term memories with emotional imprints, and can autonomously develop new skills by writing its own tools.
@@ -68,10 +66,16 @@ Every memory is saved with a **chemical imprint** — the exact emotional state 
 ### 🔧 Autonomous Skill Synthesis (Cerebellum)
 When LCI encounters a task it can't handle with existing tools, it **writes its own tool** (.js or .py), saves it to its skills directory, and dynamically executes it as a child process using the `LCI_SKILL_ARGS` environment variable.
 
+### 🗣️ Audio-Limbic Synthesis & STT
+LCI isn't just text-based. It features a fully integrated Web Speech API pipeline:
+- **Speech-to-Text (STT):** Click the mic to speak to LCI in real-time.
+- **Emotion-Driven Prosody:** LCI's Text-to-Speech voice changes based on its neurotransmitters. High **Dopamine** makes the voice faster and higher-pitched; high **Cortisol** slows it down and adds tension.
+- **Voice Aura & Lip-Sync:** As LCI speaks, its 3D face visually stretches in perfect sync with the audio amplitude (FFT analysis), and a cyan aura pulses behind it.
+
 ### ⚡ WebSocket Dashboard
 The interaction loop is fully decoupled from the terminal. The `dashboard` provides a 3D R3F (React Three Fiber) digital rendering of LCI's face. 
-- **Chemistry-Driven Animation:** The face dynamically **stretches** to simulate speech (robotic articulation) and **vibrates** (jitter) at high frequency when internal **Cortisol** levels are elevated, simulating stress or hyper-alertness.
-- **Real-time Synchronization:** All cognitive thoughts and emotional shifts are broadcast via WebSockets for zero-latency feedback.
+- **Real-time Synchronization:** All cognitive thoughts, tool execution logs, and emotional shifts are broadcast via WebSockets for zero-latency feedback.
+- **Configuration Panel:** Change models (OpenAI, Gemini, Anthropic, Custom), adjust API keys, and toggle voice personalities on the fly.
 
 ---
 

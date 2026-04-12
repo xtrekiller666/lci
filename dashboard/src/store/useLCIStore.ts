@@ -79,8 +79,10 @@ export interface LCIState {
   // Voice & Audio
   voiceEnabled: boolean;
   voicePersonality: 'analytical' | 'organic';
+  isListening: boolean;
   setVoiceEnabled: (v: boolean) => void;
   setVoicePersonality: (p: 'analytical' | 'organic') => void;
+  setIsListening: (v: boolean) => void;
 }
 
 export const useLCIStore = create<LCIState>((set) => ({
@@ -134,8 +136,10 @@ export const useLCIStore = create<LCIState>((set) => ({
 
   voiceEnabled: true,
   voicePersonality: 'organic',
+  isListening: false,
   setVoiceEnabled: (v) => set({ voiceEnabled: v }),
   setVoicePersonality: (p) => set({ voicePersonality: p }),
+  setIsListening: (v) => set({ isListening: v }),
 
   connected: false,
   setConnected: (v) => set({ connected: v }),

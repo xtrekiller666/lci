@@ -55,7 +55,7 @@ export class MemoryManager {
       
       const result = stmt.run(type, content, importance, chemicalsJson);
       
-      Logger.log('MemoryManager.saveMemory', `Hafıza kaydedildi. [Type: ${type}, Imp: ${importance}, Imprint: ${chemicalsJson}]`);
+      Logger.log('MemoryManager.saveMemory', `Memory saved. [Type: ${type}, Imp: ${importance}, Imprint: ${chemicalsJson}]`);
     } catch (error) {
       Logger.error('MemoryManager.saveMemory', error);
       throw error;

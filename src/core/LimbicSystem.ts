@@ -25,22 +25,35 @@ export class LimbicSystem {
   }
 
   public async updateChemicals(message: string): Promise<void> {
-    const prompt = `Analyze the user message and determine emotional impact on the AI agent. 
-Respond ONLY with a JSON object in this format: { "cortisol": delta, "dopamine": delta, "oxytocin": delta, "serotonin": delta }. 
+    const prompt = `Analyze the user message and determine:
+1. Emotional impact: Delta changes for neurotransmitters.
+2. Suppression intent: Does the user want to stop discussing a topic or forget something?
+
+Respond ONLY with a JSON object:
+{ "cortisol": delta, "dopamine": delta, "oxytocin": delta, "serotonin": delta, "suppress": boolean }
 Values must be delta changes between -0.4 and +0.4.
 User Message: "${message}"`;
 
-    const systemPrompt = "You are the Limbic Processor. Your role is to output emotional deltas based on user input.";
+    const systemPrompt = "You are the Limbic Processor. Output emotional deltas and suppression detection from user input.";
 
     try {
       // 1. Process natural decay (Homeostasis) first
       this.processHomeostasis();
 
-      // 2. Get LLM driven changes
-      const deltas = await this.llm.completeJson<ChemicalDeltas>(prompt, systemPrompt);
-      Logger.log('LimbicSystem.updateChemicals', `Deltas received: ${JSON.stringify(deltas)}`);
+      // 2. Get combined LLM analysis (chemicals + suppression in ONE call)
+      const result = await this.llm.completeJson<ChemicalDeltas & { suppress: boolean }>(prompt, systemPrompt);
+      Logger.log('LimbicSystem.updateChemicals', `Result: ${JSON.stringify(result)}`);
 
-      this.updateTransmittersInDB(deltas);
+      this.updateTransmittersInDB(result);
+
+      // 3. Handle suppression if detected
+      if (result.suppress) {
+        const mem = this.db.prepare('SELECT id FROM memories ORDER BY id DESC LIMIT 1').get() as { id: number };
+        if (mem) {
+          this.db.prepare('UPDATE memories SET is_suppressed = 1 WHERE id = ?').run(mem.id);
+          Logger.log('LimbicSystem.suppression', `Memory suppressed (ID: ${mem.id})`);
+        }
+      }
     } catch (error) {
       Logger.error('LimbicSystem.updateChemicals', error);
       throw error;
@@ -75,11 +88,9 @@ User Message: "${message}"`;
     for (const name of transmitters) {
       const delta = (deltas as any)[name] || 0;
       
-      // Get current value
       const row = this.db.prepare('SELECT value FROM transmitters WHERE name = ?').get(name) as { value: number };
       const currentValue = row?.value ?? 0.5;
       
-      // Calculate new value with clamping [0.0, 1.0]
       let newValue = currentValue + delta;
       newValue = Math.max(0.0, Math.min(1.0, newValue));
       
@@ -90,26 +101,13 @@ User Message: "${message}"`;
     }
   }
 
-  public async detectSuppression(message: string): Promise<void> {
-    const prompt = `Does the user's message indicate they want to stop talking about a topic, forget something, or suppress a memory (e.g., "bunu hatırlatma", "konuyu kapat")? 
-Respond ONLY with a JSON object in this format: { "suppress": boolean }.
-User Message: "${message}"`;
-
-    const systemPrompt = "You are the Limbic Processor detecting suppression or avoidance intent.";
-
-    try {
-      const result = await this.llm.completeJson<{ suppress: boolean }>(prompt, systemPrompt);
-      if (result.suppress) {
-        const mem = this.db.prepare('SELECT id FROM memories ORDER BY id DESC LIMIT 1').get() as { id: number };
-        if (mem) {
-          this.db.prepare('UPDATE memories SET is_suppressed = 1 WHERE id = ?').run(mem.id);
-          Logger.log('LimbicSystem.detectSuppression', `Memory Suppressed. (ID: ${mem.id})`);
-        }
-      }
-    } catch (error) {
-      Logger.error('LimbicSystem.detectSuppression', error);
-      throw error;
-    }
+  /**
+   * @deprecated — Suppression is now handled inside updateChemicals() to save API calls.
+   * Kept as a no-op for backward compatibility with index.ts call sites.
+   */
+  public async detectSuppression(_message: string): Promise<void> {
+    // No-op: merged into updateChemicals
+    return;
   }
 
   public getChemicalState(): Record<string, number> {

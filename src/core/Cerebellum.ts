@@ -216,11 +216,11 @@ export class Cerebellum {
   }
 
   // Authority Guard - Now non-blocking and ready for Web Approval
-  private async executeWithSafety(commandInfo: string, targetPath: string, action: (resolvedPath: string) => Promise<string>): Promise<string> {
+  private async executeWithSafety(commandInfo: string, targetPath: string, action: (resolvedPath: string) => Promise<string>, bypassGuard = false): Promise<string> {
     const resolvedPath = path.resolve(this.workspacePath, targetPath);
     const isInsideWorkspace = resolvedPath.startsWith(this.workspacePath);
 
-    if (isInsideWorkspace) {
+    if (isInsideWorkspace || bypassGuard) {
       return await action(resolvedPath);
     } else {
       // Throw error to be caught by index.ts which will then ask the user via Socket
@@ -273,7 +273,7 @@ export class Cerebellum {
     // Add to achievements
     const achievementsPath = path.join(__dirname, '../../brain/brainstem/achievements.md');
     const userName = process.env.USER_NAME || 'User';
-    const entry = `\n- [${new Date().toISOString()}] LCI bugün **${name}** aracını icat etti ve **${userName}** için optimize etti.\n`;
+    const entry = `\n- [${new Date().toISOString()}] LCI invented the **${name}** tool and optimized it for **${userName}**.\n`;
     await fs.appendFile(achievementsPath, entry, 'utf8');
 
     return `Skill ${name} synthesis complete. Saved to ${codePath}.`;

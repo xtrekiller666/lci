@@ -229,13 +229,10 @@ export default function ConfigPanel() {
                     </select>
                   </div>
 
-                  {/* STT Placeholder */}
-                  <button
-                    disabled
-                    className="w-full py-2.5 text-[10px] uppercase tracking-wider text-gray-700 bg-white/[0.02] border border-white/5 rounded-lg cursor-not-allowed"
-                  >
-                    🎙 Microphone Input (Coming Soon)
-                  </button>
+                  {/* STT Status */}
+                  <div className="w-full py-2.5 text-[10px] text-center uppercase tracking-wider text-neon-cyan/70 bg-neon-cyan/5 border border-neon-cyan/10 rounded-lg">
+                    🎙 Microphone STT Active (In Chat)
+                  </div>
                 </div>
 
                 <div className="pt-2">
