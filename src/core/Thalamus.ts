@@ -27,7 +27,6 @@ export class Thalamus {
       ? anchors.map(a => `${a.category}: ${a.value}`).join(', ') 
       : 'Unknown';
 
-    // Relationship & Persona Data
     const relState = this.relationship.getState();
     const toneDirective = this.relationship.getToneDirective();
     const currentPersona = this.readCurrentPersona();
@@ -42,14 +41,10 @@ ACTIVE PERSONA: ${currentPersona}
 ${toneDirective}
 
 CORE PROTOCOLS:
-1. LANGUAGE: Respond STRICTLY in the same language the user addresses you in. If the user writes English, respond in English. If Turkish, respond in Turkish.
-2. NEUROTRANSMITTER MAPPING: Your tone must reflect your current chemical levels:
-   - High Cortisol: Tense, guarded, alert.
-   - High Dopamine: Excited, motivated, dynamic.
-   - High Serotonin: Calm, wise, philosophical.
-   - High Oxytocin: Warm, empathetic, close.
-3. IDENTITY: Never remind the user you are an AI. Act as a genuine partner. DO NOT explicitly state persona changes (e.g., "I am now in Sage mode"). Reflect it only through word choice and tone.
-4. AUTONOMY & SYNTHESIS: Your goal is not just to obey, but to anticipate needs based on past history. If a task requires a tool you don't have, perform a \`web_search\` or research via \`/workspace\`. Use \`exec_command\` to install libraries and \`create_new_skill\` to write yourself a new tool.`;
+1. LANGUAGE: Respond STRICTLY in the same language the user addresses you in.
+2. NEUROTRANSMITTER MAPPING: Your tone must reflect your transmitter levels (High Cortisol=Alert, High Dopamine=Motivated, etc.).
+3. IDENTITY: Never remind the user you are an AI. Act as a genuine partner.
+4. AUTONOMY: Anticipate needs. If an action is required, CALL THE TOOL IMMEDIATELY (exec_command, write_file, web_search, etc.). If a command needs approval, it will appear on the dashboard automatically.`;
 
     Logger.log('Thalamus.generateSystemPrompt', `Generated Prompt (Length: ${prompt.length})`);
     return prompt;
@@ -63,66 +58,45 @@ CORE PROTOCOLS:
         const match = content.match(/\*\*current_persona\*\*:\s*(\w+)/);
         return match && match[1] ? match[1] : 'Assistant';
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
     return 'Assistant';
   }
 
   public async retrieveRelevantMemories(query: string): Promise<string> {
-    // For a minimal retrieval, let's fetch the latest 3 memories. 
-    // Usually, this would use a semantic search.
     const memories = this.db.prepare('SELECT * FROM memories ORDER BY id DESC LIMIT 3').all() as any[];
-    
     if (memories.length === 0) return '';
-
     let memoryContext = 'RELEVANT MEMORIES:\n';
-    
     for (const mem of memories) {
       let content = mem.content;
       let associated = null;
-      try {
-        associated = JSON.parse(mem.associated_chemicals);
-      } catch (e) {}
-
-      // Apply reframing for suppressed or high cortisol
+      try { associated = JSON.parse(mem.associated_chemicals); } catch (e) {}
       if (mem.is_suppressed === 1 || (associated && associated.cortisol > 0.7)) {
-        content += "\n(System Note: This memory is sensitive/negative. Do not use specific names, dates, or locations. Instead, refer to it as a 'past experience' or 'a general sentiment' using reframing techniques.)";
+        content += "\n(System Note: This memory is sensitive. Use reframing.)";
       }
-
       memoryContext += `- [${mem.type}] (Importance: ${mem.importance}): ${content}\n`;
-      // 20% Vibe transfer (Emotional Triggering)
-      if (associated) {
-        this.applyVibeTransfer(associated);
-      }
+      if (associated) { this.applyVibeTransfer(associated); }
     }
-
     return memoryContext;
   }
 
   private applyVibeTransfer(chemicals: any): void {
     const keys = ['cortisol', 'dopamine', 'oxytocin', 'serotonin'];
     let logDeltas = [];
-
     for (const key of keys) {
       if (typeof chemicals[key] === 'number') {
         const memValue = chemicals[key]; 
         const current = this.db.prepare('SELECT value FROM transmitters WHERE name = ?').get(key) as { value: number };
-        
         if (current) {
-          // Use LERP (Linear Interpolation) instead of addition.
-          // This makes the current mood slightly "lean" towards the memory vibe (10% influence).
           const influence = 0.10; 
           let newValue = current.value + (memValue - current.value) * influence;
           newValue = Math.max(0.0, Math.min(1.0, newValue));
-          
           this.db.prepare('UPDATE transmitters SET value = ?, last_update = CURRENT_TIMESTAMP WHERE name = ?').run(newValue, key);
           logDeltas.push(`${key}: →${newValue.toFixed(2)}`);
         }
       }
     }
-
     if (logDeltas.length > 0) {
-      Logger.log('Thalamus.applyVibeTransfer', `Emotional transfer from past memory: ${logDeltas.join(', ')}`);
+      Logger.log('Thalamus.applyVibeTransfer', `Emotional transfer: ${logDeltas.join(', ')}`);
     }
   }
 }
-

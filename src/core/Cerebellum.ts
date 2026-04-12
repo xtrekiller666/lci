@@ -4,21 +4,29 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import readline from 'readline';
 import { Logger } from './Logger.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export class AuthorityRequiredError extends Error {
+  public commandInfo: string;
+  public resolvedPath: string;
+  constructor(commandInfo: string, resolvedPath: string) {
+    super(`Authority required for: ${commandInfo}`);
+    this.name = 'AuthorityRequiredError';
+    this.commandInfo = commandInfo;
+    this.resolvedPath = resolvedPath;
+  }
+}
+
 export class Cerebellum {
   public readonly workspacePath: string;
   private consecutiveFailures = 0;
-  private rl: readline.Interface;
 
-  constructor(rl: readline.Interface) {
+  constructor() {
     this.workspacePath = path.join(__dirname, '../../workspace');
-    this.rl = rl;
   }
 
   public getAvailableTools(): any[] {
@@ -131,7 +139,7 @@ export class Cerebellum {
     }
   }
 
-  public async executeToolCall(call: any, userProfileContext: string): Promise<string> {
+  public async executeToolCall(call: any, userProfileContext: string, bypassGuard = false): Promise<string> {
     const startTime = Date.now();
     let result = '';
     let success = true;
@@ -141,22 +149,22 @@ export class Cerebellum {
       
       switch (call.function.name) {
         case 'read_file':
-          result = await this.executeWithSafety('cat', args.filePath, async (p) => {
+          result = await this.executeWithSafety('read', args.filePath, async (p) => {
              return await fs.readFile(p, 'utf8');
-          });
+          }, bypassGuard);
           break;
         case 'write_file':
           result = await this.executeWithSafety('write', args.filePath, async (p) => {
              await fs.writeFile(p, args.content, 'utf8');
              return 'File written successfully.';
-          });
+          }, bypassGuard);
           break;
         case 'exec_command':
           const runDir = args.cwd ? path.resolve(this.workspacePath, args.cwd) : this.workspacePath;
           result = await this.executeWithSafety(args.command, runDir, async () => {
              const { stdout, stderr } = await execAsync(args.command, { cwd: runDir });
              return stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-          });
+          }, bypassGuard);
           break;
         case 'web_search':
           result = await this.mockWebSearch(args.query, userProfileContext);
@@ -183,7 +191,7 @@ export class Cerebellum {
               const env = { ...process.env, LCI_SKILL_ARGS: JSON.stringify(args) };
               const { stdout, stderr } = await execAsync(`${runner} "${targetFile}"`, { cwd: runDir, env });
               return stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-            });
+            }, bypassGuard);
           } else {
             throw new Error(`Unknown tool or missing script file: ${skillName}`);
           }
@@ -207,7 +215,7 @@ export class Cerebellum {
     return result;
   }
 
-  // Authority Guard
+  // Authority Guard - Now non-blocking and ready for Web Approval
   private async executeWithSafety(commandInfo: string, targetPath: string, action: (resolvedPath: string) => Promise<string>): Promise<string> {
     const resolvedPath = path.resolve(this.workspacePath, targetPath);
     const isInsideWorkspace = resolvedPath.startsWith(this.workspacePath);
@@ -215,19 +223,8 @@ export class Cerebellum {
     if (isInsideWorkspace) {
       return await action(resolvedPath);
     } else {
-      // Out of bounds - require Y/N
-      return new Promise<string>((resolve, reject) => {
-        this.rl.question(`\n[LCI AUTHORITY GUARD] LCI wants to run '${commandInfo}' at ${resolvedPath}. Approve? (Y/N): `, async (answer) => {
-          if (answer.toLowerCase() === 'y') {
-            try {
-              const res = await action(resolvedPath);
-              resolve(res);
-            } catch(e) { reject(e); }
-          } else {
-            reject(new Error('User denied the operation. (Access Denied by User)'));
-          }
-        });
-      });
+      // Throw error to be caught by index.ts which will then ask the user via Socket
+      throw new AuthorityRequiredError(commandInfo, resolvedPath);
     }
   }
 

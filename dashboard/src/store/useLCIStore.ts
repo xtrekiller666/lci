@@ -24,6 +24,10 @@ export interface LCIState {
   chemicals: ChemicalState;
   setChemicals: (c: Partial<ChemicalState>) => void;
 
+  // Authority Guard
+  pendingAuthority: { id: string; command: string; path: string } | null;
+  setPendingAuthority: (auth: { id: string; command: string; path: string } | null) => void;
+
   // Thoughts
   currentThought: string;
   setCurrentThought: (t: string) => void;
@@ -100,6 +104,9 @@ export const useLCIStore = create<LCIState>((set) => ({
 
   isSpeaking: false,
   setIsSpeaking: (v) => set({ isSpeaking: v }),
+
+  pendingAuthority: null,
+  setPendingAuthority: (auth) => set({ pendingAuthority: auth }),
 
   streamBuffer: '',
   appendStream: (token) => set((s) => ({ streamBuffer: s.streamBuffer + token })),

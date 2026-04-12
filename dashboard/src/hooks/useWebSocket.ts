@@ -54,6 +54,10 @@ export function useWebSocket() {
       store.setRelationship(data);
     });
 
+    socket.on('authority_request', (data: { id: string; command: string; path: string }) => {
+      store.setPendingAuthority(data);
+    });
+
     return () => { socket.disconnect(); };
   }, []);
 }

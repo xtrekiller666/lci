@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLCIStore } from '../store/useLCIStore';
+import { io } from 'socket.io-client';
+
+const socket = io('ws://localhost:3000', { transports: ['websocket'] });
 
 type Tab = 'CHAT' | 'CEREBELLUM';
 
@@ -12,6 +15,9 @@ export default function TerminalChat() {
   const clearStream = useLCIStore((s) => s.clearStream);
   const cerebellumLog = useLCIStore((s) => s.cerebellumLog);
   const isSpeaking = useLCIStore((s) => s.isSpeaking);
+  
+  const pendingAuthority = useLCIStore((s) => s.pendingAuthority);
+  const setPendingAuthority = useLCIStore((s) => s.setPendingAuthority);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -36,20 +42,63 @@ export default function TerminalChat() {
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
     setChatHistory((h) => [...h, { role: 'user', text: input }]);
-    
-    // Connect socket context via the window or import a singleton, but since useWebSocket uses io() implicitly,
-    // we can re-connect or just use REST since socket is local. Let's use global window or a quick fetch
-    // Actually, we can use the same SOCKET_URL to emit.
-    import('socket.io-client').then(({ io }) => {
-      const socket = io('ws://localhost:3000', { transports: ['websocket'] });
-      socket.emit('user_message', { message: input });
-    });
-    
+    socket.emit('user_message', { message: input });
     setInput('');
   }, [input]);
 
+  const handleAuthority = (approved: boolean) => {
+    socket.emit('authority_response', { approved });
+    setPendingAuthority(null);
+  };
+
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-[700px]">
+      <AnimatePresence>
+        {pendingAuthority && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="mb-4 glass-panel border-red-500/30 p-4 rounded-xl flex flex-col items-center gap-3 backdrop-blur-xl shadow-2xl shadow-red-500/10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse border border-red-500/40">
+                <span className="text-red-500 font-bold text-xs italic">!</span>
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest leading-none mb-1">Cerebellum Authority Required</h3>
+                <p className="text-[10px] text-gray-500">Operation is outside the restricted workspace bounds.</p>
+              </div>
+            </div>
+            
+            <div className="w-full bg-black/40 rounded-lg p-3 font-mono text-[10px] border border-white/5 space-y-1">
+              <div className="flex gap-2">
+                <span className="text-gray-600">ACTION:</span>
+                <span className="text-neon-cyan">{pendingAuthority.command}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-600">TARGET:</span>
+                <span className="text-gray-400 truncate max-w-[450px]">{pendingAuthority.path}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-4 w-full pt-1">
+              <button
+                onClick={() => handleAuthority(false)}
+                className="flex-1 py-2 text-[10px] uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+              >
+                Deny
+              </button>
+              <button
+                onClick={() => handleAuthority(true)}
+                className="flex-[1.5] py-2 bg-red-500/10 border border-red-500/40 text-red-500 text-[10px] uppercase tracking-widest font-bold rounded-lg hover:bg-red-500/20 shadow-lg shadow-red-500/5 transition-all"
+              >
+                Authorize Execution
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="glass-panel overflow-hidden">
         {/* Tab Bar */}
         <div className="flex border-b border-white/5">
