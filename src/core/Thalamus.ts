@@ -55,7 +55,7 @@ ${toneDirective}
     return prompt;
   }
 
-  private readCurrentPersona(): string {
+  public readCurrentPersona(): string {
     const identityPath = path.join(__dirname, '../../brain/frontal/identity.md');
     try {
       if (fs.existsSync(identityPath)) {

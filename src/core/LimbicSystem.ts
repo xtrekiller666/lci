@@ -73,18 +73,25 @@ User Message: "${message}"`;
     try {
       const result = await this.llm.completeJson<{ suppress: boolean }>(prompt, systemPrompt);
       if (result.suppress) {
-        // Find the most recent memory to suppress (for simplicity, we grab the absolute latest memory)
-        // In a real scenario, this would match context.
         const mem = this.db.prepare('SELECT id FROM memories ORDER BY id DESC LIMIT 1').get() as { id: number };
         if (mem) {
           this.db.prepare('UPDATE memories SET is_suppressed = 1 WHERE id = ?').run(mem.id);
-          Logger.log('LimbicSystem.detectSuppression', `Hafıza Baskılandı. (Memory ID: ${mem.id})`);
+          Logger.log('LimbicSystem.detectSuppression', `Memory Suppressed. (ID: ${mem.id})`);
         }
       }
     } catch (error) {
       Logger.error('LimbicSystem.detectSuppression', error);
       throw error;
     }
+  }
+
+  public getChemicalState(): Record<string, number> {
+    const rows = this.db.prepare('SELECT name, value FROM transmitters').all() as any[];
+    const state: Record<string, number> = {};
+    for (const row of rows) {
+      state[row.name] = row.value;
+    }
+    return state;
   }
 }
 

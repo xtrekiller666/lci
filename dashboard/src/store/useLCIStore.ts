@@ -59,13 +59,34 @@ export interface LCIState {
   // Config panel
   configOpen: boolean;
   toggleConfig: () => void;
+  config: {
+    modelName: string;
+    apiKey: string;
+    endpoint: string;
+  };
+  setConfig: (c: Partial<LCIState['config']>) => void;
 
   // Connection
   connected: boolean;
+  connectionError: string | null;
   setConnected: (v: boolean) => void;
+  setConnectionError: (err: string | null) => void;
 }
 
 export const useLCIStore = create<LCIState>((set) => ({
+  // ... existing fields ...
+  config: {
+    modelName: 'gpt-4o',
+    apiKey: '',
+    endpoint: 'http://localhost:1234/v1',
+  },
+  setConfig: (c) => set((s) => ({ config: { ...s.config, ...c } })),
+
+  connected: false,
+  connectionError: null,
+  setConnected: (v) => set({ connected: v }),
+  setConnectionError: (err) => set({ connectionError: err }),
+
   // Mock defaults so UI is visible without WebSocket
   chemicals: { dopamine: 0.55, serotonin: 0.6, cortisol: 0.15, oxytocin: 0.45 },
   setChemicals: (c) => set((s) => ({ chemicals: { ...s.chemicals, ...c } })),

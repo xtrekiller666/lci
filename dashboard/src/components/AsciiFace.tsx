@@ -1,120 +1,161 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useGLTF } from '@react-three/drei';
+import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
 import { useLCIStore } from '../store/useLCIStore';
 
-function AsciiSphere() {
-  const meshRef = useRef<THREE.Mesh>(null!);
+function DensePointCloudFace() {
+  const pointsRef = useRef<THREE.Points>(null!);
+  const { nodes } = useGLTF('/models/femalehead.glb');
+  
   const chemicals = useLCIStore((s) => s.chemicals);
   const isSpeaking = useLCIStore((s) => s.isSpeaking);
 
-  const geometry = useMemo(() => new THREE.IcosahedronGeometry(2.2, 6), []);
-  const originalPositions = useMemo(() => {
-    const pos = geometry.attributes.position;
-    return Float32Array.from(pos.array);
-  }, [geometry]);
+  // Surface sampling for ultra-high detail
+  const { origPos, origColors, bbox } = useMemo(() => {
+    let sourceMesh: THREE.Mesh | null = null;
+    
+    // Find the primary mesh
+    Object.values(nodes).forEach(n => {
+       // @ts-ignore
+       if (n.isMesh && !sourceMesh) sourceMesh = n;
+    });
+
+    if (!sourceMesh) return { origPos: new Float32Array(), origColors: new Float32Array(), bbox: null };
+
+    // Standardize scale to prevent "too huge" issues
+    sourceMesh.geometry.computeBoundingBox();
+    const box = sourceMesh.geometry.boundingBox!;
+    const maxDim = Math.max(
+      box.max.x - box.min.x,
+      box.max.y - box.min.y,
+      box.max.z - box.min.z
+    );
+    
+    // Scale everything down so the face fits well in a 3-unit box
+    const scaleFactor = 3.0 / maxDim;
+    sourceMesh.geometry.scale(scaleFactor, scaleFactor, scaleFactor);
+    
+    // Auto-center and permanently fix the rotation so the normals match camera view
+    sourceMesh.geometry.center();
+    sourceMesh.geometry.rotateY(Math.PI);
+    sourceMesh.geometry.computeBoundingBox(); // Recompute after scale and center
+    
+    const newBox = sourceMesh.geometry.boundingBox!;
+
+    // Generate dense point cloud
+    const sampler = new MeshSurfaceSampler(sourceMesh).build();
+    const pointCount = 80000;
+    
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const tempPosition = new THREE.Vector3();
+    const tempNormal = new THREE.Vector3();
+    const lightDir = new THREE.Vector3(0, 0.2, 1).normalize();
+
+    let count = 0;
+    let attempts = 0;
+    while (count < pointCount && attempts < pointCount * 2) {
+      sampler.sample(tempPosition, tempNormal);
+      attempts++;
+      
+      positions.push(tempPosition.x, tempPosition.y, tempPosition.z);
+      
+      // Calculate false lighting to give depth and shading to the dots
+      const dot = Math.max(0, tempNormal.dot(lightDir));
+      const brightness = dot * 0.8 + 0.2; // 20% Ambient, 80% Diffuse
+      colors.push(brightness, brightness, brightness);
+      
+      count++;
+    }
+
+    return {
+      origPos: new Float32Array(positions),
+      origColors: new Float32Array(colors),
+      bbox: newBox,
+    };
+  }, [nodes]);
+
+  // Create geometry once
+  const pointGeometry = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(origPos, 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(origColors, 3));
+    return geom;
+  }, [origPos, origColors]);
 
   useFrame(({ clock }) => {
-    if (!meshRef.current) return;
+    if (!pointsRef.current || !bbox || origPos.length === 0) return;
     const t = clock.getElapsedTime();
-    const positions = meshRef.current.geometry.attributes.position;
+    const pos = pointsRef.current.geometry.attributes.position;
+    
+    const height = bbox.max.y - bbox.min.y;
+    // Lower 35% is approximately the jaw and mouth
+    const midY = bbox.min.y + height * 0.35; 
+    
+    // Speech articulation logic
+    const mouthOpen = isSpeaking ? (Math.sin(t * 15) * 0.5 + 0.5) * 0.04 * height : 0;
+    
+    // Biometric modifiers
+    const jitter = chemicals.cortisol > 0.6 ? (Math.random() - 0.5) * 0.05 * chemicals.cortisol : 0;
+    const pulse = 1.0 + (chemicals.dopamine > 0.6 ? Math.sin(t * 2) * 0.02 * (chemicals.dopamine - 0.6) : 0);
 
-    for (let i = 0; i < positions.count; i++) {
-      const ox = originalPositions[i * 3];
-      const oy = originalPositions[i * 3 + 1];
-      const oz = originalPositions[i * 3 + 2];
+    for (let i = 0; i < origPos.length / 3; i++) {
+        const ox = origPos[i * 3];
+        let oy = origPos[i * 3 + 1];
+        const oz = origPos[i * 3 + 2];
 
-      let scale = 1.0;
-      let jitter = 0;
+        if (isSpeaking && oy < midY) {
+            const influence = (midY - oy) / (midY - bbox.min.y);
+            oy -= mouthOpen * (influence * influence);
+        }
 
-      // Cortisol > 0.7: aggressive jitter
-      if (chemicals.cortisol > 0.7) {
-        jitter = (Math.random() - 0.5) * 0.15 * chemicals.cortisol;
-      }
-
-      // Dopamine > 0.7: expand and wave
-      if (chemicals.dopamine > 0.7) {
-        scale = 1.0 + Math.sin(t * 0.8 + i * 0.1) * 0.08 * chemicals.dopamine;
-      }
-
-      // Serotonin: gentle breathing
-      const breath = Math.sin(t * 0.4) * 0.02 * chemicals.serotonin;
-
-      // Speaking: Y-axis lip-sync wobble
-      const speak = isSpeaking ? Math.sin(t * 12 + i * 0.5) * 0.04 : 0;
-
-      positions.setXYZ(
-        i,
-        ox * scale + jitter,
-        oy * scale + speak + breath,
-        oz * scale + jitter * 0.5
-      );
+        pos.setXYZ(i, ox * pulse + jitter, oy * pulse + jitter, oz * pulse);
     }
-    positions.needsUpdate = true;
+    pos.needsUpdate = true;
 
-    // Slow rotation
-    meshRef.current.rotation.y = t * 0.08;
-    meshRef.current.rotation.x = Math.sin(t * 0.15) * 0.1;
+    // Gentle hover
+    pointsRef.current.position.y = Math.sin(t * 0.5) * 0.1 - 1.0; // Offset down slightly
+    pointsRef.current.rotation.y = Math.sin(t * 0.2) * 0.05;
   });
 
-  // Color based on dominant chemical
-  const color = useMemo(() => {
-    if (chemicals.cortisol > 0.7) return '#ef4444';
-    if (chemicals.dopamine > 0.7) return '#facc15';
-    if (chemicals.oxytocin > 0.6) return '#f472b6';
-    return '#22d3ee';
-  }, [chemicals]);
+  if (origPos.length === 0) return null;
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
-      <meshStandardMaterial
-        color={color}
-        wireframe
-        transparent
-        opacity={0.35}
-      />
-    </mesh>
+    <group scale={[0.35, 0.35, 0.35]} position={[0, 1.0, 0]}>
+      <points ref={pointsRef} geometry={pointGeometry}>
+        <pointsMaterial 
+          size={0.012} // Very fine dots for detail
+          vertexColors={true}
+          transparent 
+          opacity={0.8} 
+          sizeAttenuation={true} 
+        />
+      </points>
+    </group>
   );
 }
 
 export default function AsciiFace() {
   return (
-    <div className="absolute inset-0 z-0" style={{ pointerEvents: 'none' }}>
+    <div className="absolute inset-0 z-0 bg-[#0a0a0a]" style={{ pointerEvents: 'none' }}>
       <Canvas
-        camera={{ position: [0, 0, 6], fov: 50 }}
+        camera={{ position: [0, 0, 5], fov: 45 }}
         style={{ background: 'transparent' }}
         gl={{ alpha: true, antialias: true }}
       >
-        <ambientLight intensity={0.3} />
-        <pointLight position={[5, 5, 5]} intensity={0.8} color="#22d3ee" />
-        <pointLight position={[-5, -3, 3]} intensity={0.5} color="#f472b6" />
-        <AsciiSphere />
+        <ambientLight intensity={0.5} />
+        <DensePointCloudFace />
       </Canvas>
 
-      {/* ASCII overlay text effect */}
-      <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
-        style={{ mixBlendMode: 'overlay', opacity: 0.06 }}
-      >
-        <pre className="text-[8px] leading-[8px] text-white font-mono whitespace-pre overflow-hidden">
-          {generateAsciiGrid(80, 40)}
-        </pre>
-      </div>
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-20"
+        style={{ 
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          filter: 'contrast(160%) brightness(100%) grayscale(1)'
+        }}
+      />
     </div>
   );
-}
-
-function generateAsciiGrid(cols: number, rows: number): string {
-  const chars = '@#%*+=-:. ';
-  let grid = '';
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const dist = Math.sqrt(Math.pow(x - cols / 2, 2) + Math.pow(y - rows / 2, 2));
-      const norm = Math.min(1, dist / (cols / 2));
-      const idx = Math.floor(norm * (chars.length - 1));
-      grid += chars[idx];
-    }
-    grid += '\n';
-  }
-  return grid;
 }

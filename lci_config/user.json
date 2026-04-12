@@ -1,0 +1,5 @@
+{
+  "modelName": "google/gemma-3-4b",
+  "apiKey": "sk-dummy",
+  "endpoint": "http://localhost:1234/v1"
+}

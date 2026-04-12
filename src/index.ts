@@ -1,4 +1,8 @@
 import readline from 'readline';
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
 import { LLMClient } from './core/LLMClient.js';
 import { LimbicSystem } from './core/LimbicSystem.js';
 import { FrontalLobe } from './core/FrontalLobe.js';
@@ -9,13 +13,72 @@ import { MemoryManager } from './core/MemoryManager.js';
 import { Cerebellum } from './core/Cerebellum.js';
 import { RelationshipManager } from './core/RelationshipManager.js';
 import { DreamLogic } from './core/DreamLogic.js';
+import { ConfigManager } from './core/ConfigManager.js';
+import axios from 'axios';
 
+// --- Server Setup ---
+const app = express();
+app.use(cors());
+app.use(express.json()); // Essential for parsing POST bodies
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+const configManager = ConfigManager.getInstance();
+
+const PORT = process.env.PORT || 3000;
+httpServer.listen(PORT, () => {
+  console.log(`\n[BRAINSTEM] Dashboard server running on port ${PORT}`);
+});
+
+// Reboot endpoint for Dashboard
+app.post('/api/reboot', (req, res) => {
+  console.log('[SYSTEM] Reboot requested via Dashboard.');
+  res.json({ success: true, message: 'Rebooting...' });
+  setTimeout(() => process.exit(0), 1000); 
+});
+
+// Update Config endpoint
+app.post('/api/config', (req, res) => {
+  const { modelName, apiKey, endpoint } = req.body;
+  configManager.saveConfig({ modelName, apiKey, endpoint });
+  llm.updateSettings(configManager.getLLMSettings()); // <-- Fix: Dynamically update LLM connection
+  console.log('[SYSTEM] Config updated and saved.');
+  res.json({ success: true, config: configManager.getConfig() });
+});
+
+// Proxy for Local Models (Ollama Bridge)
+app.post('/api/proxyprompt', async (req, res) => {
+  const { prompt, model, system } = req.body;
+  const config = configManager.getConfig();
+  
+  try {
+    // If it's an Ollama style endpoint (port 11434 usually)
+    const url = config.endpoint.includes('11434') 
+      ? `${config.endpoint}/api/generate` 
+      : config.endpoint;
+
+    const response = await axios.post(url, {
+      model: model || config.modelName,
+      prompt: system ? `${system}\n\n${prompt}` : prompt,
+      stream: false
+    });
+
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('[PROXY ERROR]', error.message);
+    res.status(500).json({ error: 'Local model bridge failed.', details: error.message });
+  }
+});
+
+// --- LCI Core ---
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-const llm = new LLMClient();
+const llm = new LLMClient(configManager.getLLMSettings());
 const limbic = new LimbicSystem(llm);
 const frontal = new FrontalLobe(llm);
 const thalamus = new Thalamus();
@@ -25,91 +88,124 @@ const cerebellum = new Cerebellum(rl);
 const relationship = new RelationshipManager();
 const dream = new DreamLogic(llm, relationship);
 
-// Track conversation history for consolidation
 const conversationHistory: string[] = [];
 
-async function runLoop() {
-  console.log('--- LCI INTERACTION LOOP STARTED ---');
-  console.log('Type "/exit" to end session and consolidate memories.');
+// Broadcasting helpers
+const broadcastChemicals = () => {
+  const state = limbic.getChemicalState();
+  io.emit('chemical_update', state);
+};
 
-  while (true) {
-    const userInput = await new Promise<string>((resolve) => {
-      rl.question('\nYOU: ', (answer) => resolve(answer));
-    });
+const broadcastThought = (thought: string) => {
+  io.emit('thought_stream', { thought });
+};
 
-    // /exit → consolidate session before quitting
-    if (userInput.toLowerCase() === '/exit' || userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-      console.log('\n[TEMPORAL LOBE] Closing session, consolidating memories...');
-      try {
-        if (conversationHistory.length > 0) {
-          const fullHistory = conversationHistory.join('\n');
-          await memory.consolidateSession(fullHistory);
-          console.log('[TEMPORAL LOBE] Memory consolidation complete.');
-        }
-        // Dream Cycle — runs asynchronously before final exit
-        await dream.runDreamCycle();
-      } catch (err) {
-        Logger.error('SESSION_CONSOLIDATION', err);
-      }
-      rl.close();
-      break;
+const broadcastStatus = () => {
+  const persona = thalamus['readCurrentPersona'](); // Accessing private for demo
+  io.emit('status_update', { persona, status: 'Awake' });
+  const rel = relationship.getState();
+  io.emit('relationship_update', rel);
+};
+
+let interactionActive = false;
+
+io.on('connection', (socket) => {
+  console.log(`[NETWORK] Connection established: ${socket.id}`);
+  broadcastChemicals();
+  broadcastStatus();
+
+  socket.on('user_message', async (data: { message: string }) => {
+    if (interactionActive) {
+      socket.emit('cerebellum_log', { entry: '[SYSTEM] Busy processing. Ignored message.' });
+      return;
     }
+    
+    const userInput = data.message;
+    if (!userInput.trim()) return;
+
+    interactionActive = true;
+    Logger.log('INTERACTION_START', `User: ${userInput}`);
+    conversationHistory.push(`USER: ${userInput}`);
 
     try {
-      Logger.log('INTERACTION_START', `User: ${userInput}`);
-      conversationHistory.push(`USER: ${userInput}`);
-
-      // 1. Suppression Detection — must run before other steps
-      process.stdout.write('[0/5] Suppression Check... ');
+      // 1. Suppression Check
+      broadcastThought('Checking for suppressed memories...');
       await limbic.detectSuppression(userInput);
-      console.log('Done.');
 
-      // 2. Update Limbic Chemicals
-      process.stdout.write('[1/5] Limbic Analysis... ');
+      // 2. Limbic Analysis
+      broadcastThought('Processing emotional impact...');
       await limbic.updateChemicals(userInput);
-      console.log('Done.');
+      broadcastChemicals();
 
-      // 3. Frontal Identity Detection
-      process.stdout.write('[2/5] Frontal Analysis... ');
+      // 3. Frontal Analysis
+      broadcastThought('Analyzing identity anchors...');
       await frontal.detectAnchors(userInput);
-      console.log('Done.');
 
-      // 4. Thalamus: System Prompt + Memory Retrieval (with Vibe Transfer)
-      process.stdout.write('[3/5] Thalamus Synthesis + Memory Retrieval... ');
+      // 4. Thalamus & Memory
+      broadcastThought('Retrieving relevant memories...');
       const systemPrompt = thalamus.generateSystemPrompt();
       const memoryContext = await thalamus.retrieveRelevantMemories(userInput);
-      const fullSystemPrompt = memoryContext
-        ? `${systemPrompt}\n\n${memoryContext}`
-        : systemPrompt;
-      console.log('Done.');
+      const fullSystemPrompt = memoryContext ? `${systemPrompt}\n\n${memoryContext}` : systemPrompt;
+      
+      if (memoryContext) {
+        io.emit('memory_spark', { id: Date.now().toString(), title: 'Recent Interaction', type: 'episodic' });
+      }
 
-      // 5. Final Completion with Cerebellum Tool Loop
-      process.stdout.write('[4/5] Thinking & Motor Planning... ');
+      // 5. Motor Planning & Tool Loop
+      broadcastThought('Thinking & Motor Planning...');
       
       let currentMessages: any[] = [
         { role: 'system', content: fullSystemPrompt },
         { role: 'user', content: userInput }
       ];
       const availableTools = cerebellum.getAvailableTools();
-      let responseMessage: any;
+      let finalResponse = '';
 
       while (true) {
-        responseMessage = await llm.completeWithTools(currentMessages, availableTools);
+        let responseMessage: any = { role: 'assistant', content: '' };
+        let toolCalls: any[] = [];
+
+        const stream = llm.completeWithToolsStream(currentMessages, availableTools);
         
-        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-          currentMessages.push(responseMessage); // Add assistant tool calls
+        for await (const chunk of stream) {
+          if (chunk.delta?.content) {
+            const token = chunk.delta.content;
+            finalResponse += token;
+            responseMessage.content += token;
+            io.emit('llm_token', { token });
+          }
+          if (chunk.delta?.tool_calls) {
+            for (const tc of chunk.delta.tool_calls) {
+              if (!toolCalls[tc.index]) {
+                toolCalls[tc.index] = { id: tc.id, function: { name: '', arguments: '' } };
+              }
+              if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
+              if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+            }
+          }
+        }
 
-          for (const toolCall of responseMessage.tool_calls) {
-            console.log(`\n[CEREBELLUM] Autonomous tool triggered: ${toolCall.function.name}...`);
-            const userContext = await thalamus.retrieveRelevantMemories('User identity anchors and profile');
+        io.emit('llm_token', { done: true });
+
+        const actualToolCalls = toolCalls.filter(Boolean);
+        if (actualToolCalls.length > 0) {
+          responseMessage.tool_calls = actualToolCalls;
+          currentMessages.push(responseMessage);
+
+          for (const toolCall of actualToolCalls) {
+            broadcastThought(`Executing tool: ${toolCall.function.name}...`);
+            io.emit('cerebellum_log', { entry: `[AUTONOMOUS] Triggering ${toolCall.function.name}...` });
+            
+            const userContext = await thalamus.retrieveRelevantMemories('User profile');
             const toolResult = await cerebellum.executeToolCall(toolCall, userContext);
-            console.log(`[CEREBELLUM] Result received.`);
-
-            // Trust: boost +2 per successful tool execution
+            
+            io.emit('cerebellum_log', { entry: `[RESULT] ${toolResult.substring(0, 100)}${toolResult.length > 100 ? '...' : ''}` });
+            
             if (!toolResult.startsWith('Error')) {
               await relationship.adjustTrust(2);
+              io.emit('relationship_update', relationship.getState());
             }
-            
+
             currentMessages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
@@ -118,34 +214,28 @@ async function runLoop() {
             });
           }
         } else {
-          break; // Final text response
+          break; // Done
         }
       }
 
-      const finalResponse = responseMessage.content || '';
-      console.log('\nLCI: ' + finalResponse);
       conversationHistory.push(`LCI: ${finalResponse}`);
 
-      // 6. Save this exchange as a new episodic memory (importance 5 by default)
-      process.stdout.write('[5/5] Memory Imprint... ');
+      // 6. Memory Imprint
+      broadcastThought('Imprinting episodic memory...');
       await memory.saveMemory('episodic', `User: "${userInput}" | LCI: "${finalResponse.substring(0, 200)}"`, 5);
-      console.log('Done.');
 
-      // 7. Mirror DB for inspection
+      // 7. Housekeeping
       mirror.exportTransmitters();
-
       Logger.log('INTERACTION_END', `LCI Response: ${finalResponse.substring(0, 100)}...`);
-
-      // 8. Update relationship closeness (small bump per interaction)
       await relationship.adjustCloseness(1);
+      
     } catch (error) {
       Logger.error('MAIN_LOOP', error);
-      console.error('\n[!] Error occurred. Details: brainstem/logging.md');
+      io.emit('cerebellum_log', { entry: `[ERROR] ${error}` });
+    } finally {
+      interactionActive = false;
+      broadcastThought('Idle');
     }
-  }
-}
-
-runLoop().catch(err => {
-  Logger.error('FATAL_CRASH', err);
-  process.exit(1);
+  });
 });
+

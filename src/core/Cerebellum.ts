@@ -165,7 +165,29 @@ export class Cerebellum {
           result = await this.createNewSkill(args.name, args.description, args.code, args.extension, userProfileContext);
           break;
         default:
-          throw new Error(`Unknown tool: ${call.function.name}`);
+          // Try to execute a dynamically synthesized skill
+          const skillName = call.function.name;
+          const skillsDir = path.join(__dirname, '../../brain/cerebellum/skills');
+          
+          let targetFile = '';
+          if (existsSync(path.join(skillsDir, `${skillName}.js`))) targetFile = path.join(skillsDir, `${skillName}.js`);
+          else if (existsSync(path.join(skillsDir, `${skillName}.ts`))) targetFile = path.join(skillsDir, `${skillName}.ts`);
+          else if (existsSync(path.join(skillsDir, `${skillName}.py`))) targetFile = path.join(skillsDir, `${skillName}.py`);
+          else if (existsSync(path.join(skillsDir, `${skillName}.sh`))) targetFile = path.join(skillsDir, `${skillName}.sh`);
+
+          if (targetFile) {
+            const runner = targetFile.endsWith('.py') ? 'python3' : targetFile.endsWith('.ts') ? 'npx tsx' : targetFile.endsWith('.sh') ? 'bash' : 'node';
+            
+            result = await this.executeWithSafety(`Autonomous Skill Execution: ${skillName}`, this.workspacePath, async (runDir) => {
+              // Pass the arguments securely via Environment Variable to prevent nasty shell escaping issues
+              const env = { ...process.env, LCI_SKILL_ARGS: JSON.stringify(args) };
+              const { stdout, stderr } = await execAsync(`${runner} "${targetFile}"`, { cwd: runDir, env });
+              return stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
+            });
+          } else {
+            throw new Error(`Unknown tool or missing script file: ${skillName}`);
+          }
+          break;
       }
 
       this.consecutiveFailures = 0; // Reset on success
@@ -240,7 +262,7 @@ export class Cerebellum {
       type: 'function',
       function: {
         name,
-        description: `${description} [Optimized for User Context]`,
+        description: `${description} [Optimized for User Context. Read your arguments from process.env.LCI_SKILL_ARGS or os.environ.get("LCI_SKILL_ARGS") as a JSON string.]`,
         parameters: { type: 'object', properties: {}, required: [] }
       }
     };

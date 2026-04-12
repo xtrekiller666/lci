@@ -36,8 +36,15 @@ export default function TerminalChat() {
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
     setChatHistory((h) => [...h, { role: 'user', text: input }]);
-    // In a real setup, this would emit to WebSocket
-    // socket.emit('user_message', { message: input });
+    
+    // Connect socket context via the window or import a singleton, but since useWebSocket uses io() implicitly,
+    // we can re-connect or just use REST since socket is local. Let's use global window or a quick fetch
+    // Actually, we can use the same SOCKET_URL to emit.
+    import('socket.io-client').then(({ io }) => {
+      const socket = io('ws://localhost:3000', { transports: ['websocket'] });
+      socket.emit('user_message', { message: input });
+    });
+    
     setInput('');
   }, [input]);
 
