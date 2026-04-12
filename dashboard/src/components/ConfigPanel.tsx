@@ -5,7 +5,7 @@ import { useLCIStore } from '../store/useLCIStore';
 const AI_PROVIDERS = [
   { id: 'custom', name: 'Custom (Local)', url: 'http://localhost:1234/v1', models: ['gemma-2-9b-it', 'llama-3', 'mistral'] },
   { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1', models: ['gpt-4o', 'gpt-4-turbo'] },
-  { id: 'google', name: 'Google (Gemini)', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', models: ['gemini-2.5-flash', 'gemini-1.5-pro'] },
+  { id: 'google', name: 'Google (Gemini)', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', models: ['gemini-1.5-flash', 'gemini-1.5-pro'] },
   { id: 'anthropic', name: 'Anthropic (Proxy)', url: 'https://api.anthropic.com/v1', models: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229'] },
   { id: 'deepseek', name: 'Deepseek', url: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'] }
 ];

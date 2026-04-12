@@ -52,13 +52,27 @@ function PremiumDigitalFace() {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
 
-    // The <Float> component below already handles majestic idle floating.
-    // If speaking, we add a very subtle additional 'breathing' rhythm to give life,
-    // but without causing erratic frame jumping or screen tearing.
+    // 1. Cortisol Jitter (High Frequency vibration with high stress)
+    // Scale jitter intensity based on cortisol level (0.0 to 1.0)
+    const jitterIntensity = chemicals.cortisol * 0.04;
+    if (chemicals.cortisol > 0.3) {
+      groupRef.current.position.x = (Math.random() - 0.5) * jitterIntensity;
+      groupRef.current.position.z = (Math.random() - 0.5) * jitterIntensity;
+    } else {
+      groupRef.current.position.x = 0;
+      groupRef.current.position.z = 0;
+    }
+
+    // 2. Speech Stretching (Y-scale pulse during speaking)
     if (isSpeaking) {
+      // Periodic breathing + speech bounce
       groupRef.current.position.y = Math.sin(t * 4) * 0.03 + 0.5;
+      // Vertical stretch pulse to simulate robotic articulation
+      const stretch = 1.0 + Math.sin(t * 15) * 0.05;
+      groupRef.current.scale.set(1, stretch, 1);
     } else {
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 0.5, 0.1);
+      groupRef.current.scale.set(1, 1, 1);
     }
   });
 

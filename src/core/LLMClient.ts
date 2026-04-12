@@ -16,6 +16,7 @@ export class LLMClient {
     this.openai = new OpenAI({
       apiKey: apiKey,
       baseURL: baseURL,
+      maxRetries: 5,
     });
   }
 

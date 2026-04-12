@@ -69,7 +69,9 @@ Every memory is saved with a **chemical imprint** — the exact emotional state 
 When LCI encounters a task it can't handle with existing tools, it **writes its own tool** (.js or .py), saves it to its skills directory, and dynamically executes it as a child process using the `LCI_SKILL_ARGS` environment variable.
 
 ### ⚡ WebSocket Dashboard
-The interaction loop has been fully decoupled from the terminal. The `dashboard` provides a 3D R3F (React Three Fiber) highly-detailed point cloud rendering of LCI's face. The face dynamically stretches to simulate speech and vibrates with high cortisol levels.
+The interaction loop is fully decoupled from the terminal. The `dashboard` provides a 3D R3F (React Three Fiber) digital rendering of LCI's face. 
+- **Chemistry-Driven Animation:** The face dynamically **stretches** to simulate speech (robotic articulation) and **vibrates** (jitter) at high frequency when internal **Cortisol** levels are elevated, simulating stress or hyper-alertness.
+- **Real-time Synchronization:** All cognitive thoughts and emotional shifts are broadcast via WebSockets for zero-latency feedback.
 
 ---
 
