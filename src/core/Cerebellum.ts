@@ -106,12 +106,29 @@ export class Cerebellum {
   private loadDynamicTools(): any[] {
     const skillsPath = path.join(__dirname, '../../brain/cerebellum/skills');
     if (!existsSync(skillsPath)) return [];
-    
-    // For simplicity, we assume custom skills are declared via JSON files
-    // A robust system would dynamically require/exec these, here we just expose their definitions.
-    // Full dynamic function execution requires more architecture, 
-    // but we can execute them via exec_command for now if the LLM knows how.
-    return [];
+
+    try {
+      const files = require('fs').readdirSync(skillsPath) as string[];
+      const tools: any[] = [];
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        try {
+          const raw = require('fs').readFileSync(path.join(skillsPath, file), 'utf8');
+          const schema = JSON.parse(raw);
+          if (schema.type === 'function' && schema.function) {
+            tools.push({ type: 'function', function: schema.function });
+            Logger.log('Cerebellum.loadDynamicTools', `Loaded skill: ${schema.function.name}`);
+          }
+        } catch (e) {
+          Logger.error('Cerebellum.loadDynamicTools', `Failed to parse ${file}`);
+        }
+      }
+
+      return tools;
+    } catch {
+      return [];
+    }
   }
 
   public async executeToolCall(call: any, userProfileContext: string): Promise<string> {
@@ -178,14 +195,14 @@ export class Cerebellum {
     } else {
       // Out of bounds - require Y/N
       return new Promise<string>((resolve, reject) => {
-        this.rl.question(`\n[LCI AUTHORITY GUARD] LCI, ${resolvedPath} dizininde '${commandInfo}' işlemini yapmak için onayınızı bekliyor (Y/N): `, async (answer) => {
+        this.rl.question(`\n[LCI AUTHORITY GUARD] LCI wants to run '${commandInfo}' at ${resolvedPath}. Approve? (Y/N): `, async (answer) => {
           if (answer.toLowerCase() === 'y') {
             try {
               const res = await action(resolvedPath);
               resolve(res);
             } catch(e) { reject(e); }
           } else {
-            reject(new Error('Kullanıcı işlemi reddetti. (Access Denied by User)'));
+            reject(new Error('User denied the operation. (Access Denied by User)'));
           }
         });
       });

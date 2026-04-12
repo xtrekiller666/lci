@@ -47,8 +47,10 @@ LCI is designed to be a **personal companion** — one that grows alongside you,
 | **Frontal Lobe** | `src/core/FrontalLobe.ts` | Detects user identity anchors (age, beliefs, profession) |
 | **Limbic System** | `src/core/LimbicSystem.ts` | Analyzes emotional impact, updates neurotransmitters, detects suppression |
 | **Temporal Lobe** | `src/core/MemoryManager.ts` | Saves memories with chemical imprints, consolidates sessions |
-| **Cerebellum** | `src/core/Cerebellum.ts` | Executes tools, creates new skills, sandbox safety |
+| **Cerebellum** | `src/core/Cerebellum.ts` | Executes tools, creates new skills, sandbox safety, dynamic skill loading |
 | **Thalamus** | `src/core/Thalamus.ts` | Generates system prompt from all signals, retrieves memories with reframing |
+| **Relationship** | `src/core/RelationshipManager.ts` | Trust score, closeness tracking, dynamic tone (formal → intimate) |
+| **Dream Logic** | `src/core/DreamLogic.ts` | Dream cycle, persona evolution (Sage/Pupil/Companion/Assistant), memory pruning |
 | **Brainstem** | `src/core/Logger.ts` | System logging to `brain/brainstem/logging.md` |
 
 ---
@@ -86,8 +88,8 @@ On `/exit`, LCI runs a "sleep cycle" — summarizing the conversation into **epi
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/LCI.git
-cd LCI
+git clone https://github.com/xtrekiller666/lci.git
+cd lci
 npm install
 
 # Configure your environment
@@ -95,20 +97,24 @@ cp .env.example .env
 # Edit .env with your API key and preferences
 
 # Initialize the database
-npx tsx src/initDb.ts
+npm run init-db
 
 # Start LCI
-npx tsx src/index.ts
+npm start
 ```
 
 ### Commands
 
 | Command | Description |
 |---|---|
-| `npx tsx src/index.ts` | Start the interaction loop |
-| `npx tsx src/initDb.ts` | Initialize/reset the database |
-| `npx tsx scripts/reset.ts` | Full factory reset (wipes all memories & state) |
-| `/exit` | End session and trigger memory consolidation |
+| `npm start` | Start the interaction loop |
+| `npm run dev` | Start with auto-reload (watch mode) |
+| `npm run init-db` | Initialize/reset the database |
+| `npm run update-db` | Run schema migrations |
+| `npm run reset` | Full factory reset (wipes all memories & state) |
+| `npm run typecheck` | TypeScript type verification |
+| `npm run mirror` | Export transmitters to markdown |
+| `/exit` | End session, consolidate memories, run dream cycle |
 
 ---
 
@@ -119,20 +125,23 @@ LCI/
 ├── brain/                    # LCI's "mind" — runtime state files
 │   ├── brainstem/            # Logs and achievements
 │   ├── cerebellum/           # Motor learning + synthesized skills
-│   ├── frontal/              # User profile & identity anchors
+│   ├── frontal/              # User profile, identity, persona
 │   ├── limbic/               # Neurotransmitter mirror
 │   └── temporal/             # Episodic & semantic memory files
+├── dashboard/                # Web UI (Vite + React + R3F)
 ├── data/                     # SQLite database (gitignored)
 ├── scripts/                  # Utility scripts (reset, etc.)
 ├── src/
 │   ├── core/                 # All brain modules
 │   │   ├── Cerebellum.ts     # Tool engine & skill synthesis
+│   │   ├── DreamLogic.ts     # Dream cycle & persona evolution
 │   │   ├── FrontalLobe.ts    # Identity detection
 │   │   ├── LimbicSystem.ts   # Emotional chemistry
-│   │   ├── LLMClient.ts      # OpenAI client wrapper
+│   │   ├── LLMClient.ts      # OpenAI client (with retry)
 │   │   ├── Logger.ts         # Brainstem logging
 │   │   ├── MemoryManager.ts  # Memory storage & consolidation
 │   │   ├── MirrorDB.ts       # DB → Markdown exporter
+│   │   ├── RelationshipManager.ts # Trust & closeness tracker
 │   │   └── Thalamus.ts       # Central router & prompt generator
 │   ├── index.ts              # Main interaction loop
 │   ├── initDb.ts             # Database initialization

@@ -38,24 +38,34 @@ export class LLMClient {
     }
   }
 
-  public async completeJson<T>(prompt: string, systemPrompt: string): Promise<T> {
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0,
-      });
+  public async completeJson<T>(prompt: string, systemPrompt: string, maxRetries = 3): Promise<T> {
+    let lastError: any;
 
-      const content = response.choices[0]?.message?.content || '{}';
-      return JSON.parse(content) as T;
-    } catch (error) {
-      Logger.error('LLMClient.completeJson', error);
-      throw error;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.openai.chat.completions.create({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0,
+        });
+
+        const content = response.choices[0]?.message?.content || '{}';
+        return JSON.parse(content) as T;
+      } catch (error) {
+        lastError = error;
+        Logger.error('LLMClient.completeJson', `Attempt ${attempt}/${maxRetries} failed: ${error}`);
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+        }
+      }
     }
+
+    Logger.error('LLMClient.completeJson', `All ${maxRetries} attempts exhausted.`);
+    throw lastError;
   }
 
   public async completeWithTools(

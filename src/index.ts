@@ -39,12 +39,12 @@ async function runLoop() {
 
     // /exit → consolidate session before quitting
     if (userInput.toLowerCase() === '/exit' || userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-      console.log('\n[TEMPORAL LOBE] Oturum kapatılıyor, anılar konsolide ediliyor...');
+      console.log('\n[TEMPORAL LOBE] Closing session, consolidating memories...');
       try {
         if (conversationHistory.length > 0) {
           const fullHistory = conversationHistory.join('\n');
           await memory.consolidateSession(fullHistory);
-          console.log('[TEMPORAL LOBE] Hafıza konsolidasyonu tamamlandı.');
+          console.log('[TEMPORAL LOBE] Memory consolidation complete.');
         }
         // Dream Cycle — runs asynchronously before final exit
         await dream.runDreamCycle();
@@ -100,10 +100,15 @@ async function runLoop() {
           currentMessages.push(responseMessage); // Add assistant tool calls
 
           for (const toolCall of responseMessage.tool_calls) {
-            console.log(`\n[CEREBELLUM] Otonom modül tetiklendi: ${toolCall.function.name}...`);
-            const userContext = await thalamus.retrieveRelevantMemories("Kullanıcı kimlik çapaları ve genel profil");
+            console.log(`\n[CEREBELLUM] Autonomous tool triggered: ${toolCall.function.name}...`);
+            const userContext = await thalamus.retrieveRelevantMemories('User identity anchors and profile');
             const toolResult = await cerebellum.executeToolCall(toolCall, userContext);
-            console.log(`[CEREBELLUM] Sonuç alındı.`);
+            console.log(`[CEREBELLUM] Result received.`);
+
+            // Trust: boost +2 per successful tool execution
+            if (!toolResult.startsWith('Error')) {
+              await relationship.adjustTrust(2);
+            }
             
             currentMessages.push({
               role: 'tool',
@@ -123,7 +128,7 @@ async function runLoop() {
 
       // 6. Save this exchange as a new episodic memory (importance 5 by default)
       process.stdout.write('[5/5] Memory Imprint... ');
-      await memory.saveMemory('episodic', `Kullanıcı: "${userInput}" | LCI: "${finalResponse.substring(0, 200)}"`, 5);
+      await memory.saveMemory('episodic', `User: "${userInput}" | LCI: "${finalResponse.substring(0, 200)}"`, 5);
       console.log('Done.');
 
       // 7. Mirror DB for inspection
@@ -135,7 +140,7 @@ async function runLoop() {
       await relationship.adjustCloseness(1);
     } catch (error) {
       Logger.error('MAIN_LOOP', error);
-      console.error('\n[!] Hata oluştu. Detaylar: brainstem/logging.md');
+      console.error('\n[!] Error occurred. Details: brainstem/logging.md');
     }
   }
 }

@@ -29,7 +29,7 @@ export class DreamLogic {
    * and evolves LCI's persona for the next session.
    */
   public async runDreamCycle(): Promise<void> {
-    console.log('\n💤 [DREAM CYCLE] LCI rüya döngüsüne girdi...');
+    console.log('\n💤 [DREAM CYCLE] LCI entering dream cycle...');
     
     try {
       // 1. Gather recent data (last 24h worth of logs and memories)
@@ -61,12 +61,12 @@ export class DreamLogic {
 
       // 7. Log the dream
       Logger.log('DreamLogic.runDreamCycle', 
-        `LCI rüya gördü: ${dreamAnalysis.nextArchetype} moduna evrildi, ${dreamAnalysis.memoriesPruned || 0} anlamsız anı silindi, kritik dersler kalıcı belleğe işlendi.`);
+        `Dream complete: Evolved to ${dreamAnalysis.nextArchetype} archetype, ${dreamAnalysis.memoriesPruned || 0} insignificant memories pruned, critical lessons saved to permanent memory.`);
 
-      console.log(`💤 [DREAM CYCLE] Rüya tamamlandı. Yeni persona: ${dreamAnalysis.nextArchetype}`);
+      console.log(`💤 [DREAM CYCLE] Dream complete. New persona: ${dreamAnalysis.nextArchetype}`);
     } catch (error) {
       Logger.error('DreamLogic.runDreamCycle', error);
-      console.error('[DREAM CYCLE] Rüya sırasında bir hata oluştu.');
+      console.error('[DREAM CYCLE] Error during dream cycle.');
     }
   }
 
@@ -75,7 +75,7 @@ export class DreamLogic {
       'SELECT type, content, importance, timestamp FROM memories ORDER BY id DESC LIMIT 10'
     ).all() as any[];
 
-    if (memories.length === 0) return 'Henüz kayıtlı anı yok.';
+    if (memories.length === 0) return 'No memories recorded yet.';
 
     return memories.map(m => 
       `[${m.type}] (Önem: ${m.importance}) ${m.content}`
@@ -170,7 +170,7 @@ Respond ONLY with a JSON object:
     ).run();
     
     if (result.changes > 0) {
-      Logger.log('DreamLogic.pruneMemories', `${result.changes} önemsiz anı silindi.`);
+      Logger.log('DreamLogic.pruneMemories', `${result.changes} insignificant memories pruned.`);
     }
   }
 }

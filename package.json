@@ -4,7 +4,14 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npx tsx src/index.ts",
+    "dev": "npx tsx --watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "init-db": "npx tsx src/initDb.ts",
+    "update-db": "npx tsx src/updateDb.ts",
+    "reset": "npx tsx scripts/reset.ts",
+    "mirror": "npx tsx src/core/MirrorDB.ts"
   },
   "keywords": [],
   "author": "",
