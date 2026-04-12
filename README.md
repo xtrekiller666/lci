@@ -70,7 +70,7 @@ When LCI encounters a task it can't handle with existing tools, it **writes its 
 LCI isn't just text-based. It features a fully integrated Web Speech API pipeline:
 - **Speech-to-Text (STT):** Click the mic to speak to LCI in real-time.
 - **Emotion-Driven Prosody:** LCI's Text-to-Speech voice changes based on its neurotransmitters. High **Dopamine** makes the voice faster and higher-pitched; high **Cortisol** slows it down and adds tension.
-- **Voice Aura & Lip-Sync:** As LCI speaks, its 3D face visually stretches in perfect sync with the audio amplitude (FFT analysis), and a cyan aura pulses behind it.
+- **Voice Aura & Lip-Sync:** As LCI speaks, its 3D face visually stretches in perfect sync with the audio amplitude (FFT analysis), and a cyan aura pulses behind it.(NOT WORKING AT THE MOMENT)
 
 ### ⚡ WebSocket Dashboard
 The interaction loop is fully decoupled from the terminal. The `dashboard` provides a 3D R3F (React Three Fiber) digital rendering of LCI's face. 
@@ -114,8 +114,7 @@ Once the Dashboard is running on `http://localhost:5173`, click the **Settings (
 - Leave `API Key` blank or type `sk-dummy`.
 - Setting formats properly updates the backend dynamically without rebooting!
 
-### High-Fidelity Dia TTS (Python Microservice)
-LCI now natively supports **Nari Labs Dia (1.6B)** for deep learning, cinematic voice generation. It automatically tags sentences with emotions derived from simulated neurotransmitters (such as `(laughs)` on high dopamine).
+### High-Fidelity TTS (Python Microservice)
 
 > **Hardware Requirement:** You must have an NVIDIA GPU with at least **4.5 GB to 8 GB VRAM** and CUDA 12.6+.
 
