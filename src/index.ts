@@ -35,8 +35,12 @@ httpServer.listen(PORT, () => {
 // Reboot endpoint for Dashboard
 app.post('/api/reboot', (req, res) => {
   console.log('[SYSTEM] Reboot requested via Dashboard.');
-  res.json({ success: true, message: 'Rebooting...' });
-  setTimeout(() => process.exit(0), 1000); 
+  res.json({ success: true, message: 'Rebooting via file watcher...' });
+  import('fs/promises').then((fs) => {
+    const __filename = import.meta.url ? new URL(import.meta.url).pathname : process.argv[1];
+    const time = new Date();
+    fs.utimes(__filename, time, time).catch(() => process.exit(1));
+  });
 });
 
 // Update Config endpoint
@@ -122,6 +126,33 @@ io.on('connection', (socket) => {
     
     const userInput = data.message;
     if (!userInput.trim()) return;
+
+    if (userInput.toLowerCase() === '/sleep' || userInput.toLowerCase() === '/exit') {
+        io.emit('cerebellum_log', { entry: '[SYSTEM] Initiating sleep cycle & memory consolidation...' });
+        io.emit('thought_stream', { thought: 'Entering dream state... compiling session memories.' });
+        try {
+            if (conversationHistory.length > 0) {
+                await memory.consolidateSession(conversationHistory.join('\n'));
+            }
+            io.emit('status_update', { status: 'Dreaming' });
+            await dream.runDreamCycle();
+            conversationHistory.length = 0; // Clear memory buffer
+            
+            // Apply new relationship stats
+            const rel = relationship.getState();
+            // Read updated archetype/persona
+            const newPersona = thalamus['readCurrentPersona']();
+            
+            io.emit('relationship_update', rel);
+            io.emit('status_update', { status: 'Awake', persona: newPersona });
+            io.emit('thought_stream', { thought: `Waking up as: ${newPersona}` });
+            io.emit('cerebellum_log', { entry: '[SYSTEM] Sleep cycle complete. LCI is awake.' });
+        } catch (e: any) {
+            Logger.error('SLEEP_CYCLE', e);
+            io.emit('cerebellum_log', { entry: `[ERROR] Dream cycle failed: ${e.message}` });
+        }
+        return; // Skip normal LLM processing
+    }
 
     interactionActive = true;
     Logger.log('INTERACTION_START', `User: ${userInput}`);

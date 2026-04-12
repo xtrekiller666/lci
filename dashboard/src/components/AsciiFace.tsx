@@ -53,18 +53,20 @@ function PremiumDigitalFace() {
     const t = clock.getElapsedTime();
     
     // Biometric Reaction Mapping
-    const jitter = chemicals.cortisol > 0.6 ? (Math.random() - 0.5) * 0.05 * chemicals.cortisol : 0;
+    // Use high-frequency sine waves combined for chaotic but smooth trembling instead of frame-independent chaotic Math.random()
+    const jitterStr = chemicals.cortisol > 0.6 ? (chemicals.cortisol - 0.6) * 0.1 : 0;
+    const smoothJitter = jitterStr > 0 ? (Math.sin(t * 40) + Math.sin(t * 60)) * jitterStr : 0;
     const excitement = chemicals.dopamine > 0.6 ? (chemicals.dopamine - 0.6) * 0.1 : 0;
     
     // Idle animation + Cortisol Jitter
-    groupRef.current.position.x = jitter;
+    groupRef.current.position.x = smoothJitter;
     // Rotate slightly on idle
     groupRef.current.rotation.y = Math.sin(t * 0.3) * 0.1;
     groupRef.current.rotation.z = Math.sin(t * 0.2) * 0.02;
 
     // Simulate "speaking" via vertical jaw stretching and gentle pulsing
     if (isSpeaking) {
-      groupRef.current.position.y += (Math.sin(t * 20) * 0.01) + jitter;
+      groupRef.current.position.y += (Math.sin(t * 20) * 0.01) + smoothJitter;
       // Procedural Jaw Mimicry: rapid subtle Y-axis scale stretching
       groupRef.current.scale.y = 1.0 + (Math.sin(t * 30) * 0.5 + 0.5) * 0.04;
     } else {
