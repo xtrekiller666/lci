@@ -1,5 +1,7 @@
 {
-  "modelName": "gemini-2.5-flash",
+  "modelName": "gemini-1.5-flash",
   "apiKey": "AIzaSyCTS6c1d86Bvcsa0EbJWoI7QI1XOhxOqOk",
-  "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/"
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
+  "voiceEnabled": true,
+  "voicePersonality": "organic"
 }

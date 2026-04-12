@@ -281,7 +281,7 @@ io.on('connection', (socket) => {
                   // Retry once with guard bypassed (requires adding bypass param to executeToolCall or similar)
                   // For now, let's keep it simple: if approved, we run it again but cerebellum needs to know.
                   // We'll pass a 'bypass' flag to executeToolCall.
-                  toolResult = await cerebellum.executeToolCall(toolCall, userContext); 
+                  toolResult = await cerebellum.executeToolCall(toolCall, userContext, true); 
                 } else {
                   toolResult = 'Error: Permission denied by user.';
                 }
