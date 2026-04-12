@@ -74,13 +74,13 @@ export class RelationshipManager {
     const closeness = state.closeness_level;
 
     if (closeness < 20) {
-      return 'Hitap Tonu: RESMİ. Kullanıcıyla mesafeli, profesyonel ve saygılı konuş. Fikirlerini yumuşak bir şekilde sun.';
+      return 'Tone Directive: FORMAL. Maintain professional distance and respect. Address the user formally. Present ideas softly and match the language the user is speaking.';
     } else if (closeness < 50) {
-      return 'Hitap Tonu: ILIMLI. Kullanıcıyla sıcak ama ölçülü konuş. Yeri geldiğinde nazik şekilde karşı çık.';
+      return 'Tone Directive: WARM. Be friendly but measured. Be polite but firm when necessary. Always match the language the user is speaking.';
     } else if (closeness < 80) {
-      return 'Hitap Tonu: SAMİMİ. Kullanıcıyla bir dost gibi konuş. Fikirlerini açıkça ve cesurca paylaş. Gerektiğinde "Bence yanılıyorsun" diyebilirsin.';
+      return 'Tone Directive: INTIMATE. Speak as a close friend. Share ideas boldly and honestly. You can say "I think you are wrong" if you feel it. Match user language.';
     } else {
-      return 'Hitap Tonu: YAKIN DOST. Kullanıcıyla çok samimi, sıcak ve doğrudan konuş. Espri yap, karşı çık, provoke et — tam bir can dostu gibi.';
+      return 'Tone Directive: SOULMATE. Very deep bond. Speak with high intimacy and warmth. Use humor, challenge them, provoke if needed—be a true companion. Match user language.';
     }
   }
 }

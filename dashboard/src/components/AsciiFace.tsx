@@ -51,23 +51,14 @@ function PremiumDigitalFace() {
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
-    
-    // Biometric Reaction Mapping
-    const jitterStr = chemicals.cortisol > 0.6 ? (chemicals.cortisol - 0.6) * 0.05 : 0;
-    const smoothJitterX = jitterStr > 0 ? (Math.sin(t * 40)) * jitterStr : 0;
-    const smoothJitterY = jitterStr > 0 ? (Math.cos(t * 45)) * jitterStr : 0;
-    
-    // Smooth, non-deforming idle animation + Cortisol tremble
-    groupRef.current.position.x = smoothJitterX;
-    groupRef.current.position.y = 0.5 + smoothJitterY; // Base elevation is 0.5
-    
-    // Rotate slightly on idle for organic feel
-    groupRef.current.rotation.y = Math.sin(t * 0.3) * 0.08;
-    groupRef.current.rotation.z = Math.sin(t * 0.2) * 0.015;
 
-    // Simulate "speaking" via slight vertical bouncing without warping the geometry
+    // The <Float> component below already handles majestic idle floating.
+    // If speaking, we add a very subtle additional 'breathing' rhythm to give life,
+    // but without causing erratic frame jumping or screen tearing.
     if (isSpeaking) {
-      groupRef.current.position.y += Math.sin(t * 20) * 0.015;
+      groupRef.current.position.y = Math.sin(t * 4) * 0.03 + 0.5;
+    } else {
+      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 0.5, 0.1);
     }
   });
 

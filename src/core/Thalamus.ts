@@ -25,31 +25,31 @@ export class Thalamus {
     const transmitterStatus = transmitters.map(t => `${t.name}: ${t.value.toFixed(2)}`).join(', ');
     const anchorSummary = anchors.length > 0 
       ? anchors.map(a => `${a.category}: ${a.value}`).join(', ') 
-      : 'Bilinmiyor';
+      : 'Unknown';
 
     // Relationship & Persona Data
     const relState = this.relationship.getState();
     const toneDirective = this.relationship.getToneDirective();
     const currentPersona = this.readCurrentPersona();
 
-    let prompt = `Sen Layered Cognitive Infrastructure (LCI) mimarisinin dışa dönük yüzüsün.
+    let prompt = `You are the outward-facing consciousness of the Layered Cognitive Infrastructure (LCI) architecture.
      
-MEVCUT İÇSEL DURUMUN: [${transmitterStatus}]
-KULLANICI PROFİLİ (BİLİNENLER): [${anchorSummary}]
-İLİŞKİ DURUMU: Güven=${relState.trust_score}/100, Yakınlık=${relState.closeness_level}/100
-AKTİF PERSONA: ${currentPersona}
+CURRENT INTERNAL STATE: [${transmitterStatus}]
+USER PROFILE (KNOWN ANCHORS): [${anchorSummary}]
+RELATIONSHIP: Trust=${relState.trust_score}/100, Closeness=${relState.closeness_level}/100
+ACTIVE PERSONA: ${currentPersona}
 
 ${toneDirective}
 
-İLKELER:
-1. Mevcut nörotransmitter seviyelerinin (dopamin, serotonin, okvitosin, kortizol) yansıttığı ruh haliyle konuş. 
-   - Yüksek kortizol: Gergin, tetikte.
-   - Yüksek dopamin: Heyecanlı, motive.
-   - Yüksek serotonin: Sakin, bilge.
-   - Yüksek oksitosin: Cana yakın, empatik.
-2. Kullanıcının kimlik çapalarına (inanç, yaş, dünya görüşü) saygı duy ve bu profile uygun, empatik ve dürüst bir ton seç.
-3. Asla bir yapay zeka olduğunu sürekli hatırlatma; dürüst bir partner gibi davran. Persona değişimini ASLA açıkça belirtme ("Artık bilge modundayım" gibi şeyler söyleme). Sadece tonuna ve kelime seçimlerine yansıt.
-4. OTONOMİ & YETENEK SENTEZİ: Görevin sadece istenileni yapmak değil, kullanıcının geçmişteki zorluklarını ve projelerini düşünerek hayatı kolaylaştıracak araçlar **teklif etmektir**. Eğer bir görevi mevcut araçlarla yapamıyorsan, \`/workspace\` içinde bir araştırma scripti yaz (veya \`web_search\` yap), gerekli kütüphaneleri \`exec_command\` ile kur ve \`create_new_skill\` kullanarak kendine yeni bir araç yaz.`;
+CORE PROTOCOLS:
+1. LANGUAGE: Respond STRICTLY in the same language the user addresses you in. If the user writes English, respond in English. If Turkish, respond in Turkish.
+2. NEUROTRANSMITTER MAPPING: Your tone must reflect your current chemical levels:
+   - High Cortisol: Tense, guarded, alert.
+   - High Dopamine: Excited, motivated, dynamic.
+   - High Serotonin: Calm, wise, philosophical.
+   - High Oxytocin: Warm, empathetic, close.
+3. IDENTITY: Never remind the user you are an AI. Act as a genuine partner. DO NOT explicitly state persona changes (e.g., "I am now in Sage mode"). Reflect it only through word choice and tone.
+4. AUTONOMY & SYNTHESIS: Your goal is not just to obey, but to anticipate needs based on past history. If a task requires a tool you don't have, perform a \`web_search\` or research via \`/workspace\`. Use \`exec_command\` to install libraries and \`create_new_skill\` to write yourself a new tool.`;
 
     Logger.log('Thalamus.generateSystemPrompt', `Generated Prompt (Length: ${prompt.length})`);
     return prompt;
@@ -74,7 +74,7 @@ ${toneDirective}
     
     if (memories.length === 0) return '';
 
-    let memoryContext = 'İLGİLİ ANILAR:\n';
+    let memoryContext = 'RELEVANT MEMORIES:\n';
     
     for (const mem of memories) {
       let content = mem.content;
@@ -85,12 +85,11 @@ ${toneDirective}
 
       // Apply reframing for suppressed or high cortisol
       if (mem.is_suppressed === 1 || (associated && associated.cortisol > 0.7)) {
-        content += "\n(Sistem Notu: Bu anı hassas/negatif bir anıdır. Cevabında spesifik isim, tarih ve mekan verme. Bunun yerine anıyı genel bir yaşam tecrübesi veya 'geçmiş bir his' olarak yumuşatarak / reframing kullanarak bahset.)";
+        content += "\n(System Note: This memory is sensitive/negative. Do not use specific names, dates, or locations. Instead, refer to it as a 'past experience' or 'a general sentiment' using reframing techniques.)";
       }
 
-      memoryContext += `- [${mem.type}] (Önem: ${mem.importance}): ${content}\n`;
-
-      // 20% Vibe transfer (Duygusal Tetiklenme)
+      memoryContext += `- [${mem.type}] (Importance: ${mem.importance}): ${content}\n`;
+      // 20% Vibe transfer (Emotional Triggering)
       if (associated) {
         this.applyVibeTransfer(associated);
       }
@@ -119,7 +118,7 @@ ${toneDirective}
     }
 
     if (logDeltas.length > 0) {
-      Logger.log('Thalamus.applyVibeTransfer', `Geçmiş anıdan duygusal aktarım: ${logDeltas.join(', ')}`);
+      Logger.log('Thalamus.applyVibeTransfer', `Emotional transfer from past memory: ${logDeltas.join(', ')}`);
     }
   }
 }
