@@ -11,6 +11,7 @@ interface ChemicalDeltas {
   cortisol: number;
   dopamine: number;
   oxytocin: number;
+  serotonin: number;
 }
 
 export class LimbicSystem {
@@ -25,13 +26,17 @@ export class LimbicSystem {
 
   public async updateChemicals(message: string): Promise<void> {
     const prompt = `Analyze the user message and determine emotional impact on the AI agent. 
-Respond ONLY with a JSON object in this format: { "cortisol": value, "dopamine": value, "oxytocin": value }. 
-Values must be delta changes between -0.5 and +0.5.
+Respond ONLY with a JSON object in this format: { "cortisol": delta, "dopamine": delta, "oxytocin": delta, "serotonin": delta }. 
+Values must be delta changes between -0.4 and +0.4.
 User Message: "${message}"`;
 
-    const systemPrompt = "You are the Limbic Processor of a layered cognitive infrastructure. Your role is purely analytical.";
+    const systemPrompt = "You are the Limbic Processor. Your role is to output emotional deltas based on user input.";
 
     try {
+      // 1. Process natural decay (Homeostasis) first
+      this.processHomeostasis();
+
+      // 2. Get LLM driven changes
       const deltas = await this.llm.completeJson<ChemicalDeltas>(prompt, systemPrompt);
       Logger.log('LimbicSystem.updateChemicals', `Deltas received: ${JSON.stringify(deltas)}`);
 
@@ -42,8 +47,30 @@ User Message: "${message}"`;
     }
   }
 
+  /**
+   * Pulls all neurotransmitters 10% closer to the 0.5 baseline.
+   * Ensures the system doesn't stay pegged at 0 or 1 forever.
+   */
+  private processHomeostasis(): void {
+    const transmitters = ['cortisol', 'dopamine', 'oxytocin', 'serotonin'];
+    const decayRate = 0.10; // 10% pull towards center
+    const baseline = 0.5;
+
+    for (const name of transmitters) {
+      const row = this.db.prepare('SELECT value FROM transmitters WHERE name = ?').get(name) as { value: number };
+      const current = row?.value ?? baseline;
+      
+      const diff = baseline - current;
+      const decay = diff * decayRate;
+      const newValue = current + decay;
+
+      this.db.prepare('UPDATE transmitters SET value = ?, last_update = CURRENT_TIMESTAMP WHERE name = ?')
+        .run(newValue, name);
+    }
+  }
+
   private updateTransmittersInDB(deltas: ChemicalDeltas): void {
-    const transmitters = ['cortisol', 'dopamine', 'oxytocin'];
+    const transmitters = ['cortisol', 'dopamine', 'oxytocin', 'serotonin'];
     
     for (const name of transmitters) {
       const delta = (deltas as any)[name] || 0;

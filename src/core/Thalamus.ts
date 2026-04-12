@@ -104,15 +104,18 @@ CORE PROTOCOLS:
 
     for (const key of keys) {
       if (typeof chemicals[key] === 'number') {
-        const delta = chemicals[key] * 0.20; // 20% transfer
+        const memValue = chemicals[key]; 
         const current = this.db.prepare('SELECT value FROM transmitters WHERE name = ?').get(key) as { value: number };
         
         if (current) {
-          let newValue = current.value + delta;
-          newValue = Math.max(0.0, Math.min(1.0, newValue)); // Clamp
+          // Use LERP (Linear Interpolation) instead of addition.
+          // This makes the current mood slightly "lean" towards the memory vibe (10% influence).
+          const influence = 0.10; 
+          let newValue = current.value + (memValue - current.value) * influence;
+          newValue = Math.max(0.0, Math.min(1.0, newValue));
           
           this.db.prepare('UPDATE transmitters SET value = ?, last_update = CURRENT_TIMESTAMP WHERE name = ?').run(newValue, key);
-          logDeltas.push(`${key}: +${delta.toFixed(2)}`);
+          logDeltas.push(`${key}: →${newValue.toFixed(2)}`);
         }
       }
     }
