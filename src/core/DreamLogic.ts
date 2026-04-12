@@ -142,10 +142,10 @@ Respond ONLY with a JSON object:
 **reasoning**: ${reasoning}
 
 ## Archetype Definitions
-- **Sage**: Bilge, sakin, felsefi. Kullanıcı rehberlik aradığında.
-- **Pupil**: Meraklı, alçakgönüllü, öğrenmeye açık. Kullanıcı öğretirken.
-- **Companion**: Sıcak, eşit, sohbet odaklı. Kullanıcı duygusal destek aradığında.
-- **Assistant**: Profesyonel, verimli, görev odaklı. Kullanıcı üretkenlik aradığında.
+- **Sage**: Wise, calm, philosophical. Used when the user seeks guidance.
+- **Pupil**: Curious, humble, open to learning. Used when the user is teaching.
+- **Companion**: Warm, equal, conversation-focused. Used for emotional support.
+- **Assistant**: Professional, efficient, task-oriented. Used for productivity.
 `;
     
     await fs.writeFile(identityPath, content, 'utf8');
@@ -158,7 +158,7 @@ Respond ONLY with a JSON object:
     const dir = path.dirname(semanticPath);
     await fs.mkdir(dir, { recursive: true });
     
-    const entry = `\n### [${new Date().toISOString()}] — Rüya Konsolidasyonu\n${lessons}\n---\n`;
+    const entry = `\n### [${new Date().toISOString()}] — Dream Consolidation\n${lessons}\n---\n`;
     await fs.appendFile(semanticPath, entry, 'utf8');
   }
 

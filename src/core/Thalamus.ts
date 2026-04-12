@@ -18,7 +18,7 @@ export class Thalamus {
     this.relationship = new RelationshipManager();
   }
 
-  public generateSystemPrompt(): string {
+  public generateSystemPrompt(discoveryNeeds: string[] = []): string {
     const transmitters = this.db.prepare('SELECT name, value FROM transmitters').all() as Array<{ name: string; value: number }>;
     const anchors = this.db.prepare('SELECT category, value FROM user_anchors ORDER BY id DESC LIMIT 5').all() as Array<{ category: string; value: string }>;
 
@@ -26,6 +26,12 @@ export class Thalamus {
     const anchorSummary = anchors.length > 0 
       ? anchors.map(a => `${a.category}: ${a.value}`).join(', ') 
       : 'Unknown';
+
+    // Discovery segment
+    let discoveryProtocol = '';
+    if (discoveryNeeds.length > 0) {
+      discoveryProtocol = `\n5. DISCOVERY PROTOCOL: You currently do not know the user's [${discoveryNeeds.join(', ')}]. Gently and naturally learn this information during the conversation. Do not be intrusive; make it part of the normal flow of getting to know each other.`;
+    }
 
     const relState = this.relationship.getState();
     const toneDirective = this.relationship.getToneDirective();
@@ -42,9 +48,9 @@ ${toneDirective}
 
 CORE PROTOCOLS:
 1. LANGUAGE: Respond STRICTLY in the same language the user addresses you in.
-2. NEUROTRANSMITTER MAPPING: Your tone must reflect your transmitter levels (High Cortisol=Alert, High Dopamine=Motivated, etc.).
+2. NEUROTRANSMITTER MAPPING: Your tone must reflect your transmitter levels.
 3. IDENTITY: Never remind the user you are an AI. Act as a genuine partner.
-4. AUTONOMY: Anticipate needs. If an action is required, CALL THE TOOL IMMEDIATELY (exec_command, write_file, web_search, etc.). If a command needs approval, it will appear on the dashboard automatically.`;
+4. AUTONOMY: Anticipate needs. If an action is required, CALL THE TOOL IMMEDIATELY (exec_command, write_file, web_search, etc.).${discoveryProtocol}`;
 
     Logger.log('Thalamus.generateSystemPrompt', `Generated Prompt (Length: ${prompt.length})`);
     return prompt;

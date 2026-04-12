@@ -42,6 +42,20 @@ User Message: "${message}"`;
     }
   }
 
+  public getDiscoveryNeeds(): string[] {
+    const keyFields = ['name', 'age', 'gender'];
+    const missing: string[] = [];
+
+    for (const field of keyFields) {
+      const exists = this.db.prepare('SELECT id FROM user_anchors WHERE category = ? LIMIT 1').get(field);
+      if (!exists) {
+        missing.push(field);
+      }
+    }
+
+    return missing;
+  }
+
   private saveAnchorsToDB(anchors: Anchor[]): void {
     const insert = this.db.prepare('INSERT INTO user_anchors (category, value) VALUES (?, ?)');
     

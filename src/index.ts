@@ -178,7 +178,8 @@ io.on('connection', (socket) => {
 
       // 4. Thalamus & Memory
       broadcastThought('Retrieving relevant memories...');
-      const systemPrompt = thalamus.generateSystemPrompt();
+      const discoveryNeeds = frontal.getDiscoveryNeeds();
+      const systemPrompt = thalamus.generateSystemPrompt(discoveryNeeds);
       const memoryContext = await thalamus.retrieveRelevantMemories(userInput);
       const fullSystemPrompt = memoryContext ? `${systemPrompt}\n\n${memoryContext}` : systemPrompt;
       
