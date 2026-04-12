@@ -17,6 +17,17 @@ export default function ConfigPanel() {
   const connectionError = useLCIStore((s) => s.connectionError);
   const currentConfig = useLCIStore((s) => s.config);
   const setStoreConfig = useLCIStore((s) => s.setConfig);
+  
+  // Voice & TTS settings from store
+  const voiceEnabled = useLCIStore((s) => s.voiceEnabled);
+  const voicePersonality = useLCIStore((s) => s.voicePersonality);
+  const ttsEngine = useLCIStore((s) => s.ttsEngine);
+  const ttsDiaModel = useLCIStore((s) => s.ttsDiaModel);
+  
+  const setVoiceEnabled = useLCIStore((s) => s.setVoiceEnabled);
+  const setVoicePersonality = useLCIStore((s) => s.setVoicePersonality);
+  const setTtsEngine = useLCIStore((s) => s.setTtsEngine);
+  const setTtsDiaModel = useLCIStore((s) => s.setTtsDiaModel);
 
   const [providerId, setProviderId] = useState('custom');
   const [modelName, setModelName] = useState(currentConfig.modelName);
@@ -54,10 +65,14 @@ export default function ConfigPanel() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { voiceEnabled, voicePersonality, ttsEngine, ttsDiaModel } = useLCIStore.getState();
       const res = await fetch('http://localhost:3000/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modelName, apiKey, endpoint }),
+        body: JSON.stringify({ 
+          modelName, apiKey, endpoint, 
+          voiceEnabled, voicePersonality, ttsEngine, ttsDiaModel 
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -198,30 +213,54 @@ export default function ConfigPanel() {
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-[10px] text-gray-500">Voice Feedback</label>
                     <button
-                      onClick={() => {
-                        const current = useLCIStore.getState().voiceEnabled;
-                        useLCIStore.getState().setVoiceEnabled(!current);
-                      }}
+                      onClick={() => setVoiceEnabled(!voiceEnabled)}
                       className={`w-10 h-5 rounded-full transition-all relative ${
-                        useLCIStore.getState().voiceEnabled
+                        voiceEnabled
                           ? 'bg-neon-cyan/30 border border-neon-cyan/50'
                           : 'bg-white/5 border border-white/10'
                       }`}
                     >
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${
-                        useLCIStore.getState().voiceEnabled
+                        voiceEnabled
                           ? 'right-0.5 bg-neon-cyan'
                           : 'left-0.5 bg-gray-600'
                       }`} />
                     </button>
                   </div>
 
+                  {/* TTS Engine */}
+                  <div className="mb-3">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">TTS Engine</label>
+                    <select
+                      value={ttsEngine || 'browser'}
+                      onChange={(e) => setTtsEngine(e.target.value as 'browser' | 'dia')}
+                      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 appearance-none transition-colors"
+                    >
+                      <option value="browser">🌐 Browser Native Engine (Fast)</option>
+                      <option value="dia">🎙 Dia HD AI (Requires Local GPU)</option>
+                    </select>
+                  </div>
+
+                  {/* Dia Custom Model Path */}
+                  {ttsEngine === 'dia' && (
+                    <div className="mb-3">
+                      <label className="text-[10px] uppercase tracking-[0.2em] text-neon-cyan/70 block mb-1.5 font-bold">Dia Model ID/Path</label>
+                      <input
+                        value={ttsDiaModel}
+                        onChange={(e) => setTtsDiaModel(e.target.value)}
+                        className="w-full bg-neon-cyan/5 border border-neon-cyan/20 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan transition-colors"
+                        placeholder="nari-labs/Dia-1.6B-0626"
+                      />
+                      <p className="text-[9px] text-gray-500 mt-1 pl-1">HuggingFace repo or local 'models/...' path</p>
+                    </div>
+                  )}
+
                   {/* Voice Personality */}
                   <div className="mb-3">
                     <label className="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1.5">Voice Personality</label>
                     <select
-                      value={useLCIStore.getState().voicePersonality}
-                      onChange={(e) => useLCIStore.getState().setVoicePersonality(e.target.value as 'analytical' | 'organic')}
+                      value={voicePersonality}
+                      onChange={(e) => setVoicePersonality(e.target.value as 'analytical' | 'organic')}
                       className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-neon-cyan/50 appearance-none transition-colors"
                     >
                       <option value="organic">🧬 Organic (Emotion-Driven)</option>

@@ -8,25 +8,43 @@ from transformers import AutoProcessor, DiaForConditionalGeneration
 app = FastAPI()
 
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
-model_checkpoint = "nari-labs/Dia-1.6B-0626"
+current_model_checkpoint = "nari-labs/Dia-1.6B-0626"
+processor = None
+model = None
 
-print(f"[DIA SERVER] Loading model {model_checkpoint} to {torch_device}...")
+print(f"[DIA SERVER] Loading initial model {current_model_checkpoint} to {torch_device}...")
 try:
-    processor = AutoProcessor.from_pretrained(model_checkpoint)
-    model = DiaForConditionalGeneration.from_pretrained(model_checkpoint).to(torch_device)
+    processor = AutoProcessor.from_pretrained(current_model_checkpoint)
+    model = DiaForConditionalGeneration.from_pretrained(current_model_checkpoint).to(torch_device)
     print("[DIA SERVER] Model loaded successfully.")
 except Exception as e:
     print(f"[DIA SERVER ERROR] Failed to load model: {e}")
-    processor = None
-    model = None
 
 class SpeechRequest(BaseModel):
     text: str
+    model_id: str = "nari-labs/Dia-1.6B-0626"
 
 @app.post("/generate")
 async def generate_speech(req: SpeechRequest):
+    global model, processor, current_model_checkpoint
+
+    target_model = req.model_id.strip() if req.model_id else "nari-labs/Dia-1.6B-0626"
+
+    if target_model != current_model_checkpoint or processor is None or model is None:
+        print(f"[DIA SERVER] Loading newly requested model '{target_model}'...")
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            processor = AutoProcessor.from_pretrained(target_model)
+            model = DiaForConditionalGeneration.from_pretrained(target_model).to(torch_device)
+            current_model_checkpoint = target_model
+            print("[DIA SERVER] Model changed and loaded successfully.")
+        except Exception as e:
+            print(f"[DIA SERVER ERROR] Failed to load requested model: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     if not model or not processor:
-        raise HTTPException(status_code=500, detail="Model not loaded. Check GPU/Dependencies.")
+        raise HTTPException(status_code=500, detail="Model is still not loaded.")
 
     # Dia requires [S1] prepended
     raw_text = req.text.strip()

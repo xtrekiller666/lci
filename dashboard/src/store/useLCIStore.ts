@@ -79,9 +79,13 @@ export interface LCIState {
   // Voice & Audio
   voiceEnabled: boolean;
   voicePersonality: 'analytical' | 'organic';
+  ttsEngine: 'browser' | 'dia';
+  ttsDiaModel: string;
   isListening: boolean;
   setVoiceEnabled: (v: boolean) => void;
   setVoicePersonality: (p: 'analytical' | 'organic') => void;
+  setTtsEngine: (e: 'browser' | 'dia') => void;
+  setTtsDiaModel: (m: string) => void;
   setIsListening: (v: boolean) => void;
 }
 
@@ -136,9 +140,13 @@ export const useLCIStore = create<LCIState>((set) => ({
 
   voiceEnabled: true,
   voicePersonality: 'organic',
+  ttsEngine: 'browser',
+  ttsDiaModel: 'nari-labs/Dia-1.6B-0626',
   isListening: false,
   setVoiceEnabled: (v) => set({ voiceEnabled: v }),
   setVoicePersonality: (p) => set({ voicePersonality: p }),
+  setTtsEngine: (e) => set({ ttsEngine: e }),
+  setTtsDiaModel: (m) => set({ ttsDiaModel: m }),
   setIsListening: (v) => set({ isListening: v }),
 
   connected: false,
