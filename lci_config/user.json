@@ -1,6 +1,6 @@
 {
   "modelName": "gemini-1.5-flash",
-  "apiKey": "AIzaSyCTS6c1d86Bvcsa0EbJWoI7QI1XOhxOqOk",
+  "apiKey": "************************************",
   "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
   "voiceEnabled": true,
   "voicePersonality": "organic"
